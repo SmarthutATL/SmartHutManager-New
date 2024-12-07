@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 import CoreData
 import FirebaseAuth
 
@@ -14,6 +15,8 @@ struct SettingsView: View {
         DeletedItem(type: .workOrder, description: "Work Order #5678")
     ]
 
+    @State private var selectedLogo: UIImage? = nil
+    @State private var isShowingImagePicker = false
     @State private var isShowingTradesmenList = false
     @EnvironmentObject var authViewModel: AuthViewModel
 
@@ -55,6 +58,32 @@ struct SettingsView: View {
                     }
                 }
 
+                // Logo Customization Section
+                Section(header: Text("Customize App")) {
+                    Button(action: {
+                        isShowingImagePicker.toggle()
+                    }) {
+                        HStack {
+                            Image(systemName: "photo.on.rectangle")
+                                .foregroundColor(.blue)
+                                .frame(width: 32, height: 32)
+                            Text("Change Splash Screen Logo")
+                                .font(.body)
+                            Spacer()
+                            if let selectedLogo = selectedLogo {
+                                Image(uiImage: selectedLogo)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(4)
+                            } else {
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    }
+                }
+
                 // App Management Section for Admin Controls
                 Section(header: Text("App Management")) {
                     SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
@@ -91,9 +120,30 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $isShowingImagePicker) {
+                ImagePicker(selectedImage: $selectedLogo)
+            }
+            .onChange(of: selectedLogo) { newLogo in
+                if let logo = newLogo {
+                    saveLogoToUserDefaults(image: logo)
+                }
+            }
             .sheet(isPresented: $isShowingTradesmenList) {
                 TradesmenListView()
             }
+        }
+    }
+
+    private func saveLogoToUserDefaults(image: UIImage) {
+        if let data = image.pngData() {
+            UserDefaults.standard.set(data, forKey: "splashScreenLogo")
+        }
+    }
+
+    private func loadLogoFromUserDefaults() {
+        if let data = UserDefaults.standard.data(forKey: "splashScreenLogo"),
+           let image = UIImage(data: data) {
+            selectedLogo = image
         }
     }
 
