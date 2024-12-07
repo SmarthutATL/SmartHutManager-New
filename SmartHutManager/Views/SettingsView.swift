@@ -85,14 +85,6 @@ struct SettingsView: View {
         db.collection("users").document(email).updateData(["subscriptionPlan": plan])
     }
 
-    private func appManagementSection() -> some View {
-        Section(header: Text("App Management")) {
-            SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
-            SettingsItem(icon: "creditcard.fill", title: "Manage Payment Methods", color: .green)
-            SettingsItem(icon: "bell.fill", title: "Notification Settings", color: .blue)
-        }
-    }
-
     private func signOutSection() -> some View {
         Section {
             Button(action: {

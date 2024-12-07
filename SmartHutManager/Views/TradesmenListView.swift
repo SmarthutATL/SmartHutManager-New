@@ -33,7 +33,7 @@ struct TradesmenListView: View {
                 }
                 .onDelete(perform: deleteTradesman)
             }
-            .navigationTitle("Tradesmen")
+            .navigationTitle("Techs")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { isShowingCreateTradesman.toggle() }) {
