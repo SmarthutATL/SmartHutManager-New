@@ -39,6 +39,7 @@
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="phoneNumber" optional="YES" attributeType="String"/>
         <attribute name="points" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="workOrderPoints" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="workOrders" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="WorkOrder" inverseName="tradesmen" inverseEntity="WorkOrder"/>
     </entity>
     <entity name="WorkOrder" representedClassName=".WorkOrder" syncable="YES">

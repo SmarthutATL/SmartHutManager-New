@@ -26,6 +26,7 @@ extension Tradesmen {
     @NSManaged public var badges: [String]?
     @NSManaged public var jobCompletionStreak: Int32
     @NSManaged public var completedJobs: Int16
+    @NSManaged public var workOrderPoints: Int32
 
 }
 

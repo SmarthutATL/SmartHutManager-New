@@ -320,7 +320,13 @@ struct NewWorkOrderView: View {
     
     // Function to delete a task
     private func deleteTask(at index: Int) {
-        tasks.remove(at: index)
+        let removedTask = tasks.remove(at: index)
+        print("Deleted task: \(removedTask.name)")
+
+        // Remove points for all assigned tradesmen if a task is deleted
+        for tradesman in selectedTradesmen {
+            GamificationManager.shared.removeWorkOrderPoints(from: tradesman.name ?? "", context: viewContext)
+        }
     }
     
     // Validate the form and show an alert message if incomplete
@@ -349,11 +355,11 @@ struct NewWorkOrderView: View {
         let fetchRequest: NSFetchRequest<WorkOrder> = NSFetchRequest(entityName: "WorkOrder")
         fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \WorkOrder.workOrderNumber, ascending: false)]
         fetchRequest.fetchLimit = 1
-        
+
         do {
             let highestWorkOrder = try viewContext.fetch(fetchRequest).first
             let nextWorkOrderNumber = (highestWorkOrder?.workOrderNumber ?? 0) + 1
-            
+
             let newWorkOrder = WorkOrder(context: viewContext)
             newWorkOrder.category = category
             newWorkOrder.workOrderDescription = workOrderDescription
@@ -362,25 +368,31 @@ struct NewWorkOrderView: View {
             newWorkOrder.customer = selectedCustomer
             newWorkOrder.time = serviceTime
             newWorkOrder.notes = notes
-            newWorkOrder.isCallback = isCallback // Save the callback status
+            newWorkOrder.isCallback = isCallback
             newWorkOrder.workOrderNumber = Int16(nextWorkOrderNumber)
-            
-            // Use accessors to add tradesmen to the work order
+
+            // Assign tradesmen
             for tradesman in selectedTradesmen {
                 newWorkOrder.addToTradesmen(tradesman)
-                tradesman.addToWorkOrders(newWorkOrder) // Ensures inverse relationship is set.
+                tradesman.addToWorkOrders(newWorkOrder)
             }
-            
-            // Use accessors to add tasks to the work order
+
+            // Assign tasks
             for task in tasks {
                 let newTask = Task(context: viewContext)
                 newTask.name = task.name
                 newTask.taskDescription = task.description
                 newTask.isComplete = task.isComplete
-                newWorkOrder.addToTasks(newTask)  // Add task using the accessor
+                newWorkOrder.addToTasks(newTask)
             }
-            
+
             try viewContext.save()
+
+            // Recalculate points
+            GamificationManager.shared.recalculatePoints(context: viewContext) {
+                // Reload leaderboard view after recalculation
+            }
+
             presentationMode.wrappedValue.dismiss()
         } catch {
             print("Error saving work order: \(error.localizedDescription)")
