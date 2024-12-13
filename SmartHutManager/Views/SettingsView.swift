@@ -1,7 +1,7 @@
 import SwiftUI
-import PhotosUI
 import CoreData
 import FirebaseAuth
+import FirebaseFirestore
 
 struct SettingsView: View {
     @FetchRequest(
@@ -14,84 +14,34 @@ struct SettingsView: View {
         DeletedItem(type: .invoice, description: "Invoice #1234"),
         DeletedItem(type: .workOrder, description: "Work Order #5678")
     ]
-
     @State private var selectedLogo: UIImage? = nil
+    @State private var selectedPlan: String = "Basic"
     @State private var isShowingImagePicker = false
-    @State private var isShowingTradesmenList = false
+    @State private var isShowingTradesmenList = false // Added this
     @EnvironmentObject var authViewModel: AuthViewModel
 
     var body: some View {
         NavigationView {
             List {
-                // Tradesman's Account Info
-                Section {
-                    if let admin = adminTradesmen.first {
-                        TradesmanAccountSection(tradesman: admin)
-                    } else {
-                        Text("No tradesman available")
-                            .foregroundColor(.gray)
-                    }
-                }
+                // Tradesman Account Section
+                TradesmanAccountSection(tradesman: adminTradesmen.first)
 
                 // Recently Deleted Section
-                Section(header: Text("Recently Deleted")) {
-                    if recentlyDeletedItems.isEmpty {
-                        Text("No recently deleted items")
-                            .foregroundColor(.gray)
-                    } else {
-                        ForEach(recentlyDeletedItems) { item in
-                            HStack {
-                                Image(systemName: item.icon)
-                                    .foregroundColor(item.type == .invoice ? .green : .blue)
-                                Text(item.description)
-                                Spacer()
-                                Button(action: { restoreItem(item) }) {
-                                    Text("Restore")
-                                        .foregroundColor(.blue)
-                                }
-                                Button(action: { deleteItemPermanently(item) }) {
-                                    Text("Delete")
-                                        .foregroundColor(.red)
-                                }
-                            }
-                        }
-                    }
-                }
+                RecentlyDeletedSection(items: $recentlyDeletedItems)
 
-                // Logo Customization Section
-                Section(header: Text("Customize App")) {
-                    Button(action: {
-                        isShowingImagePicker.toggle()
-                    }) {
-                        HStack {
-                            Image(systemName: "photo.on.rectangle")
-                                .foregroundColor(.blue)
-                                .frame(width: 32, height: 32)
-                            Text("Change Splash Screen Logo")
-                                .font(.body)
-                            Spacer()
-                            if let selectedLogo = selectedLogo {
-                                Image(uiImage: selectedLogo)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
-                            } else {
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    }
-                }
+                // Subscription Plan Section
+                SubscriptionPlanView(
+                    selectedPlan: $selectedPlan,
+                    updatePlanInFirebase: updatePlanInFirebase
+                )
 
-                // App Management Section for Admin Controls
-                Section(header: Text("App Management")) {
-                    SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
-                    SettingsItem(icon: "creditcard.fill", title: "Manage Payment Methods", color: .green)
-                    SettingsItem(icon: "bell.fill", title: "Notification Settings", color: .blue)
-                }
+                // Customize Logo Section
+                CustomizeLogoSection(
+                    selectedLogo: $selectedLogo,
+                    isShowingImagePicker: $isShowingImagePicker
+                )
 
-                // Tradesmen Management Section
+                // Technician Management Section
                 Section(header: Text("Technician Management")) {
                     Button(action: {
                         isShowingTradesmenList.toggle()
@@ -100,294 +50,59 @@ struct SettingsView: View {
                     }
                 }
 
-                // App Info & Support Section
-                Section(header: Text("App Info & Support")) {
-                    SettingsItem(icon: "gearshape", title: "App Version: 1.0.0", color: .gray)
-                    SettingsItem(icon: "questionmark.circle.fill", title: "Contact Support", color: .blue)
-                }
+                // App Management Section
+                appManagementSection()
 
                 // Sign Out Section
-                Section {
-                    Button(action: {
-                        authViewModel.signOut()
-                    }) {
-                        Text("Sign Out")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    }
-                }
+                signOutSection()
             }
             .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
             .sheet(isPresented: $isShowingImagePicker) {
                 ImagePicker(selectedImage: $selectedLogo)
             }
-            .onChange(of: selectedLogo) { newLogo in
-                if let logo = newLogo {
-                    saveLogoToUserDefaults(image: logo)
-                }
-            }
             .sheet(isPresented: $isShowingTradesmenList) {
-                TradesmenListView()
-            }
-        }
-    }
-
-    private func saveLogoToUserDefaults(image: UIImage) {
-        if let data = image.pngData() {
-            UserDefaults.standard.set(data, forKey: "splashScreenLogo")
-        }
-    }
-
-    private func loadLogoFromUserDefaults() {
-        if let data = UserDefaults.standard.data(forKey: "splashScreenLogo"),
-           let image = UIImage(data: data) {
-            selectedLogo = image
-        }
-    }
-
-    private func restoreItem(_ item: DeletedItem) {
-        recentlyDeletedItems.removeAll { $0.id == item.id }
-    }
-
-    private func deleteItemPermanently(_ item: DeletedItem) {
-        recentlyDeletedItems.removeAll { $0.id == item.id }
-    }
-}
-
-// MARK: - Tradesmen List View
-struct TradesmenListView: View {
-    @Environment(\.managedObjectContext) private var viewContext
-
-    @FetchRequest(
-        entity: Tradesmen.entity(),
-        sortDescriptors: [NSSortDescriptor(keyPath: \Tradesmen.name, ascending: true)]
-    ) var tradesmen: FetchedResults<Tradesmen>
-
-    @State private var isShowingCreateTradesman = false
-
-    var body: some View {
-        NavigationView {
-            List {
-                ForEach(tradesmen) { tradesman in
-                    NavigationLink(destination: EditTradesmanView(tradesman: tradesman)) {
-                        VStack(alignment: .leading) {
-                            Text(tradesman.name ?? "Unknown")
-                                .font(.headline)
-                            Text(tradesman.jobTitle ?? "Unknown Job Title")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                            if let phone = tradesman.phoneNumber, !phone.isEmpty {
-                                Text("Phone: \(phone)")
-                            }
-                            if let address = tradesman.address, !address.isEmpty {
-                                Text("Address: \(address)")
-                            }
-                        }
-                    }
-                }
-                .onDelete(perform: deleteTradesman)
-            }
-            .navigationTitle("Tradesmen")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { isShowingCreateTradesman.toggle() }) {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
-            .sheet(isPresented: $isShowingCreateTradesman) {
-                CreateTradesmanView()
+                TradesmenListView() // Presents the TradesmenListView
             }
             .onAppear {
-                TradesmenManager.shared.syncTradesmen(context: viewContext) { error in
-                    if let error = error {
-                        print("Failed to sync tradesmen: \(error)")
-                    } else {
-                        print("Tradesmen data synced successfully from Firestore to Core Data")
-                    }
-                }
+                fetchCurrentPlan()
             }
         }
     }
 
-    private func deleteTradesman(at offsets: IndexSet) {
-        offsets.map { tradesmen[$0] }.forEach(viewContext.delete)
-        do {
-            try viewContext.save()
-        } catch {
-            print("Failed to delete tradesman: \(error.localizedDescription)")
-        }
-    }
-}
-
-// MARK: - Create Tradesman View
-struct CreateTradesmanView: View {
-    @State private var name = ""
-    @State private var jobTitle = ""
-    @State private var phoneNumber = ""
-    @State private var address = ""
-    @State private var email = ""
-
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.presentationMode) private var presentationMode
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Tradesman Info")) {
-                    TextField("Full Name", text: $name)
-                    TextField("Job Title", text: $jobTitle)
-                    TextField("Phone Number", text: $phoneNumber)
-                    TextField("Address", text: $address)
-                    TextField("Email", text: $email)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                }
-
-                Button("Create Tradesman") {
-                    let newTradesman = Tradesmen(context: viewContext)
-                    newTradesman.name = name
-                    newTradesman.jobTitle = jobTitle
-                    newTradesman.phoneNumber = phoneNumber
-                    newTradesman.address = address
-                    newTradesman.email = email
-
-                    do {
-                        try viewContext.save()
-                        presentationMode.wrappedValue.dismiss()
-                    } catch {
-                        print("Failed to save tradesman: \(error.localizedDescription)")
-                    }
-                }
-                .disabled(name.isEmpty || jobTitle.isEmpty || phoneNumber.isEmpty || address.isEmpty || email.isEmpty)
+    private func fetchCurrentPlan() {
+        guard let email = authViewModel.currentUserEmail else { return }
+        let db = Firestore.firestore()
+        db.collection("users").document(email).getDocument { snapshot, error in
+            if let data = snapshot?.data(), let plan = data["subscriptionPlan"] as? String {
+                DispatchQueue.main.async { self.selectedPlan = plan }
             }
-            .navigationTitle("Create Tradesman")
         }
     }
-}
 
-// MARK: - Edit Tradesman View
-struct EditTradesmanView: View {
-    @ObservedObject var tradesman: Tradesmen
+    private func updatePlanInFirebase(_ plan: String) {
+        guard let email = authViewModel.currentUserEmail else { return }
+        let db = Firestore.firestore()
+        db.collection("users").document(email).updateData(["subscriptionPlan": plan])
+    }
 
-    @Environment(\.managedObjectContext) private var viewContext
-    @Environment(\.presentationMode) private var presentationMode
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Edit Tradesman Info")) {
-                    TextField("Full Name", text: Binding(
-                        get: { tradesman.name ?? "" },
-                        set: { tradesman.name = $0 }
-                    ))
-                    TextField("Job Title", text: Binding(
-                        get: { tradesman.jobTitle ?? "" },
-                        set: { tradesman.jobTitle = $0 }
-                    ))
-                    TextField("Phone Number", text: Binding(
-                        get: { tradesman.phoneNumber ?? "" },
-                        set: { tradesman.phoneNumber = $0 }
-                    ))
-                    TextField("Address", text: Binding(
-                        get: { tradesman.address ?? "" },
-                        set: { tradesman.address = $0 }
-                    ))
-                    TextField("Email", text: Binding(
-                        get: { tradesman.email ?? "" },
-                        set: { tradesman.email = $0 }
-                    ))
-                    .keyboardType(.emailAddress)
-                    .autocapitalization(.none)
-                }
-
-                Button("Save Changes") {
-                    do {
-                        if viewContext.hasChanges {
-                            try viewContext.save()
-                        }
-                        presentationMode.wrappedValue.dismiss()
-                    } catch {
-                        print("Failed to save tradesman: \(error.localizedDescription)")
-                    }
-                }
-                .disabled(tradesman.name?.isEmpty ?? true || tradesman.jobTitle?.isEmpty ?? true || tradesman.phoneNumber?.isEmpty ?? true || tradesman.address?.isEmpty ?? true || tradesman.email?.isEmpty ?? true)
-            }
-            .navigationTitle("Edit Tradesman")
+    private func appManagementSection() -> some View {
+        Section(header: Text("App Management")) {
+            SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
+            SettingsItem(icon: "creditcard.fill", title: "Manage Payment Methods", color: .green)
+            SettingsItem(icon: "bell.fill", title: "Notification Settings", color: .blue)
         }
     }
-}
 
-// MARK: - Tradesman Account Section
-struct TradesmanAccountSection: View {
-    let tradesman: Tradesmen
-
-    var body: some View {
-        HStack {
-            Circle()
-                .fill(Color.gray)
-                .frame(width: 50, height: 50)
-                .overlay(Text("DO").foregroundColor(.white))
-
-            VStack(alignment: .leading) {
-                Text(tradesman.name ?? "Unknown")
+    private func signOutSection() -> some View {
+        Section {
+            Button(action: {
+                authViewModel.signOut()
+            }) {
+                Text("Sign Out")
                     .font(.headline)
-                Text(tradesman.jobTitle ?? "Unknown Job Title")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                Text("Phone: \(tradesman.phoneNumber ?? "N/A")")
-                Text("Address: \(tradesman.address ?? "N/A")")
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
-        }
-    }
-}
-
-// MARK: - DeletedItem Enum and Data Model
-enum DeletedItemType {
-    case invoice
-    case workOrder
-}
-
-struct DeletedItem: Identifiable {
-    var id = UUID()
-    var type: DeletedItemType
-    var description: String
-
-    var icon: String {
-        switch type {
-        case .invoice: return "doc.text.fill"
-        case .workOrder: return "wrench.and.screwdriver.fill"
-        }
-    }
-}
-
-// MARK: - SettingsItem Reused View
-struct SettingsItem: View {
-    var icon: String
-    var title: String
-    var color: Color
-    var toggle: Bool = false
-    @State private var isOn: Bool = false
-
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .frame(width: 32, height: 32)
-            Text(title)
-                .font(.body)
-            Spacer()
-
-            if toggle {
-                Toggle("", isOn: $isOn)
-                    .labelsHidden()
-            }
-
-            Image(systemName: "chevron.right")
-                .foregroundColor(.gray)
-                .opacity(toggle ? 0 : 1)
         }
     }
 }
