@@ -33,6 +33,7 @@ extension WorkOrder {
     @NSManaged public var invoice: Invoice?
     @NSManaged public var tasks: NSSet?
     @NSManaged public var tradesmen: NSSet?
+    @NSManaged public var job: JobOptionEntity?
 
 }
 
