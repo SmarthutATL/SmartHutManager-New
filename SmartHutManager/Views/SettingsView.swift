@@ -17,56 +17,130 @@ struct SettingsView: View {
     @State private var selectedLogo: UIImage? = nil
     @State private var selectedPlan: String = "Basic"
     @State private var isShowingImagePicker = false
-    @State private var isShowingTradesmenList = false // Added this
+    @State private var isShowingTradesmenList = false
+    @State private var isShowingSubscriptionPlanView = false
     @EnvironmentObject var authViewModel: AuthViewModel
 
     var body: some View {
         NavigationView {
-            List {
-                // Tradesman Account Section
-                TradesmanAccountSection(tradesman: adminTradesmen.first)
+            ScrollView {
+                VStack(spacing: 20) {
+                    // Tradesman Account Section
+                    cardView {
+                        NavigationLink(destination: TradesmanAccountSection(tradesman: adminTradesmen.first)) {
+                            SettingsItem(icon: "person.crop.circle.fill", title: "Account Details", color: .blue)
+                                .foregroundColor(.white)
+                        }
+                    }
 
-                // Recently Deleted Section
-                RecentlyDeletedSection(items: $recentlyDeletedItems)
+                    // Recently Deleted Section
+                    cardView {
+                        SettingsItem(icon: "trash.fill", title: "Recently Deleted Items", color: .red)
+                            .foregroundColor(.white)
+                            .onTapGesture {
+                                // Show recently deleted items
+                            }
+                    }
 
-                // Subscription Plan Section
-                SubscriptionPlanView(
-                    selectedPlan: $selectedPlan,
-                    updatePlanInFirebase: updatePlanInFirebase
-                )
+                    // Subscription Plan Section
+                    cardView {
+                        Button(action: {
+                            isShowingSubscriptionPlanView.toggle()
+                        }) {
+                            HStack {
+                                Image(systemName: "creditcard.fill")
+                                    .foregroundColor(.green)
+                                    .frame(width: 32, height: 32)
+                                Text("Subscription Plan")
+                                    .font(.body)
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Text(selectedPlan)
+                                    .foregroundColor(.gray)
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                    }
 
-                // Customize Logo Section
-                CustomizeLogoSection(
-                    selectedLogo: $selectedLogo,
-                    isShowingImagePicker: $isShowingImagePicker
-                )
+                    // Customize Logo Section
+                    cardView {
+                        SettingsItem(icon: "photo.fill", title: "Customize Logo", color: .purple)
+                            .foregroundColor(.white)
+                            .onTapGesture {
+                                isShowingImagePicker.toggle()
+                            }
+                    }
 
-                // Technician Management Section
-                Section(header: Text("Technician Management")) {
-                    Button(action: {
-                        isShowingTradesmenList.toggle()
-                    }) {
-                        SettingsItem(icon: "person.crop.circle.fill", title: "Manage Technicians", color: .blue)
+                    // Technician Management Section
+                    cardView {
+                        SettingsItem(icon: "person.2.fill", title: "Manage Technicians", color: .blue)
+                            .foregroundColor(.white)
+                            .onTapGesture {
+                                isShowingTradesmenList.toggle()
+                            }
+                    }
+
+                    // Manage Job Categories Section
+                    cardView {
+                        NavigationLink(destination: ManageJobCategoriesView()) {
+                            SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
+                                .foregroundColor(.white)
+                        }
+                    }
+
+                    // Manage Payment Methods Section
+                    cardView {
+                        NavigationLink(destination: Text("Manage Payment Methods")) {
+                            SettingsItem(icon: "creditcard.fill", title: "Manage Payment Methods", color: .green)
+                                .foregroundColor(.white)
+                        }
+                    }
+
+                    // Notification Settings Section
+                    cardView {
+                        NavigationLink(destination: Text("Notification Settings")) {
+                            SettingsItem(icon: "bell.fill", title: "Notification Settings", color: .blue)
+                                .foregroundColor(.white)
+                        }
+                    }
+
+                    // Sign Out Section
+                    cardView {
+                        signOutSection()
                     }
                 }
-
-                // App Management Section
-                appManagementSection()
-
-                // Sign Out Section
-                signOutSection()
+                .padding(.horizontal, 16)
+                .navigationTitle("Settings")
+                .sheet(isPresented: $isShowingImagePicker) {
+                    ImagePicker(selectedImage: $selectedLogo)
+                }
+                .sheet(isPresented: $isShowingTradesmenList) {
+                    TradesmenListView()
+                }
+                .sheet(isPresented: $isShowingSubscriptionPlanView) {
+                    SubscriptionPlanView(
+                        selectedPlan: $selectedPlan,
+                        updatePlanInFirebase: updatePlanInFirebase
+                    )
+                }
+                .onAppear {
+                    fetchCurrentPlan()
+                }
             }
-            .navigationTitle("Settings")
-            .sheet(isPresented: $isShowingImagePicker) {
-                ImagePicker(selectedImage: $selectedLogo)
-            }
-            .sheet(isPresented: $isShowingTradesmenList) {
-                TradesmenListView() // Presents the TradesmenListView
-            }
-            .onAppear {
-                fetchCurrentPlan()
-            }
+            .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
         }
+    }
+
+    // Reusable card-style container
+    private func cardView<Content: View>(@ViewBuilder content: @escaping () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            content()
+        }
+        .padding()
+        .background(Color(.secondarySystemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
 
     private func fetchCurrentPlan() {
@@ -86,14 +160,20 @@ struct SettingsView: View {
     }
 
     private func signOutSection() -> some View {
-        Section {
+        VStack {
             Button(action: {
                 authViewModel.signOut()
             }) {
-                Text("Sign Out")
-                    .font(.headline)
-                    .foregroundColor(.red)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                HStack {
+                    Spacer()
+                    Text("Sign Out")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                .padding()
+                .background(Color.red)
+                .cornerRadius(8)
             }
         }
     }
