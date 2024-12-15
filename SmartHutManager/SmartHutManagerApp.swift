@@ -29,7 +29,7 @@ struct SmartHutManagerApp: App {
             AppCheck.setAppCheckProviderFactory(providerFactory)
             print("Firebase App Check DeviceCheck provider set")
         #endif
-        
+
         // Register custom value transformers
         ValueTransformer.setValueTransformer(InvoiceItemTransformer(), forName: NSValueTransformerName("InvoiceItemTransformer"))
         ValueTransformer.setValueTransformer(MaterialItemTransformer(), forName: NSValueTransformerName("MaterialItemTransformer"))
@@ -39,6 +39,10 @@ struct SmartHutManagerApp: App {
         // Initialize iCloudSyncManager
         iCloudSyncManager = ICloudSyncManager(persistentContainer: persistenceController.container)
         print("iCloudSyncManager initialized")
+
+        // Seed job categories and job options
+        seedData(context: persistenceController.container.viewContext)
+        print("Data seeding complete")
 
         // Sync tradesmen data from Firestore to Core Data
         TradesmenManager.shared.syncTradesmen(context: persistenceController.container.viewContext) { error in

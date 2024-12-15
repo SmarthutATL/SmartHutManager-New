@@ -4,15 +4,10 @@ import CoreData
 struct NewWorkOrderView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) var presentationMode
-
+    
     // Work Order Details
-    @State private var category: String? = nil
-    let categories = [
-        "Accent Wall", "Camera Installation", "Drywall Repair", "Electrical", "Furniture Assembly",
-        "General Handyman", "Home Theater Installation", "Lighting", "Painting", "Picture Hanging",
-        "Plumbing", "Pressure Washing", "TV Mounting"
-    ]
-
+    @State private var selectedCategory: JobCategoryEntity? = nil
+    @State private var selectedJob: JobOptionEntity? = nil
     @State private var workOrderDescription = ""
     @State private var status = "Open"
     @State private var selectedCustomer: Customer?
@@ -21,12 +16,10 @@ struct NewWorkOrderView: View {
     @State private var serviceTime = Date() // Time of service
     @State private var notes = "" // Customer preferences
     @State private var isCallback = false
-    @State private var selectedJob: String? = nil
 
     @State private var tasks: [TaskItem] = [] // Task items
     @State private var newTaskName = ""
     @State private var newTaskDescription = ""
-
     @State private var isShowingIncompleteAlert = false
     @State private var alertMessage = ""
     
@@ -38,72 +31,26 @@ struct NewWorkOrderView: View {
         self._serviceDate = State(initialValue: selectedDate) // Pre-fill with selected date
     }
 
+    // Fetch categories dynamically from CoreData
+    @FetchRequest(
+        entity: JobCategoryEntity.entity(),
+        sortDescriptors: [NSSortDescriptor(keyPath: \JobCategoryEntity.name, ascending: true)]
+    ) var categories: FetchedResults<JobCategoryEntity>
+
     // Fetch tradesmen from Core Data
-    @FetchRequest(entity: Tradesmen.entity(), sortDescriptors: [NSSortDescriptor(keyPath: \Tradesmen.name, ascending: true)])
-    var fetchedTradesmen: FetchedResults<Tradesmen>
+    @FetchRequest(
+        entity: Tradesmen.entity(),
+        sortDescriptors: [NSSortDescriptor(keyPath: \Tradesmen.name, ascending: true)]
+    ) var fetchedTradesmen: FetchedResults<Tradesmen>
     
     @State private var selectedTradesmen: Set<Tradesmen> = []
     
     // Fetch customers from Core Data
-    @FetchRequest(entity: Customer.entity(), sortDescriptors: [NSSortDescriptor(keyPath: \Customer.name, ascending: true)])
-    var customers: FetchedResults<Customer>
-    
-    // Job options related to each category
-    let jobOptions: [String: [(job: String, description: String, price: Double)]] = [
-                "Accent Wall": [
-                    ("Install Shiplap", "Install a shiplap accent wall", 500),
-                    ("Paint Accent Wall", "Paint an accent wall with up to 3 colors", 250)
-                ],
-                "Camera Installation": [
-                    ("Install Outdoor Camera", "Install and configure outdoor security cameras", 150),
-                    ("Install Indoor Camera", "Install and configure indoor security cameras", 100)
-                ],
-                "Drywall Repair": [
-                    ("Patch Small Hole", "Repair a small hole in drywall", 75),
-                    ("Patch Large Hole", "Repair a large hole in drywall", 150)
-                ],
-                "Electrical": [
-                    ("Install Light Fixture", "Install a new light fixture", 200),
-                    ("Replace Outlet", "Replace existing electrical outlet", 75)
-                ],
-                "Furniture Assembly": [
-                    ("Assemble Table", "Assemble a standard-sized table", 100),
-                    ("Assemble Bookshelf", "Assemble a medium-sized bookshelf", 80)
-                ],
-                "General Handyman": [
-                    ("Fix Leaky Faucet", "Fix a leaky faucet", 100),
-                    ("Install Door Handle", "Replace or install a door handle", 50)
-                ],
-                "Home Theater Installation": [
-                    ("Install Surround Sound", "Install a full surround sound system", 300),
-                    ("Setup Home Theater", "Configure and setup home theater equipment", 400)
-                ],
-                "Lighting": [
-                    ("Install Ceiling Fan", "Install and wire a ceiling fan", 150),
-                    ("Install Dimmer Switch", "Install a dimmer switch", 100)
-                ],
-                "Painting": [
-                    ("Paint Room", "Paint a standard-sized room", 500),
-                    ("Touch Up Painting", "Small touch-up painting", 150)
-                ],
-                "Picture Hanging": [
-                    ("Hang Picture Frames", "Hang picture frames (up to 10)", 100),
-                    ("Install Gallery Wall", "Install a gallery wall", 200)
-                ],
-                "Plumbing": [
-                    ("Fix Leaky Pipe", "Repair a leaky pipe", 200),
-                    ("Unclog Drain", "Unclog a drain", 150)
-                ],
-                "Pressure Washing": [
-                    ("Pressure Wash Driveway", "Pressure wash driveway", 250),
-                    ("Pressure Wash Deck", "Pressure wash deck", 300)
-                ],
-                "TV Mounting": [
-                    ("Mount 32-50\" TV", "Mount and secure TV between 32\" and 50\"", 100),
-                    ("Mount 50-70\" TV", "Mount and secure TV between 50\" and 70\"", 150)
-                ]
-            ]
-    
+    @FetchRequest(
+        entity: Customer.entity(),
+        sortDescriptors: [NSSortDescriptor(keyPath: \Customer.name, ascending: true)]
+    ) var customers: FetchedResults<Customer>
+  
     var body: some View {
         NavigationView {
             Form {
@@ -137,38 +84,36 @@ struct NewWorkOrderView: View {
                 }
                 
                 // Work Order Details Section
-                Section(header: Text("Work Order Details")) {
-                    // Category Picker
-                    Picker("Category", selection: $category) {
-                        Text("Select a Category").tag(String?.none)
-                        ForEach(categories, id: \.self) {
-                            Text($0).tag(String?.some($0))
-                        }
-                    }
-                    // Use zero-parameter closure to reset selectedJob and workOrderDescription
-                    .onChange(of: category) {
-                        selectedJob = nil
-                        workOrderDescription = ""
-                    }
-                    
-                    // Job Picker (depends on selected category)
-                    Picker("Select Job", selection: $selectedJob) {
-                        if let category = category, let jobs = jobOptions[category] {
-                            ForEach(jobs, id: \.job) { job in
-                                Text(job.job).tag(String?.some(job.job))
-                            }
-                        } else {
-                            Text("Select job category first").tag(String?.none)
-                        }
-                    }
-                    // Use zero-parameter closure to update workOrderDescription based on selectedJob
-                    .onChange(of: selectedJob) {
-                        if let category = category, let jobs = jobOptions[category] {
-                            if let job = jobs.first(where: { $0.job == selectedJob }) {
-                                workOrderDescription = job.description
-                            }
-                        }
-                    }
+                               Section(header: Text("Work Order Details")) {
+                                   // Category Picker
+                                   Picker("Category", selection: $selectedCategory) {
+                                       if categories.isEmpty {
+                                           Text("No categories available").foregroundColor(.gray)
+                                       } else {
+                                           ForEach(categories, id: \.self) { category in
+                                               Text(category.name ?? "Unknown Category").tag(category as JobCategoryEntity?)
+                                           }
+                                       }
+                                   }
+                                   .onChange(of: selectedCategory) { newValue, _ in
+                                       selectedJob = nil
+                                       workOrderDescription = ""
+                                   }
+                                   
+                                   // Job Picker (depends on selected category)
+                                   if let selectedCategory = selectedCategory {
+                                       let jobs = fetchJobsForCategory(selectedCategory)
+                                       Picker("Select Job", selection: $selectedJob) {
+                                           ForEach(jobs, id: \.self) { job in
+                                               Text(job.name ?? "Unknown Job").tag(job as JobOptionEntity?)
+                                           }
+                                       }
+                                       .onChange(of: selectedJob) { newValue, _ in
+                                           if let job = newValue {
+                                               workOrderDescription = job.jobDescription ?? ""
+                                           }
+                                       }
+                                   }
                     
                     // Date of Service Picker
                     DatePicker("Date of Service", selection: $serviceDate, displayedComponents: .date)
@@ -309,6 +254,13 @@ struct NewWorkOrderView: View {
         }
     }
     
+    private func fetchJobsForCategory(_ category: JobCategoryEntity) -> [JobOptionEntity] {
+            let fetchRequest: NSFetchRequest<JobOptionEntity> = JobOptionEntity.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "category == %@", category)
+            return (try? viewContext.fetch(fetchRequest)) ?? []
+        }
+    
+    
     // Function to add a task
     private func addTask() {
         guard !newTaskName.isEmpty && !newTaskDescription.isEmpty else { return }
@@ -331,23 +283,32 @@ struct NewWorkOrderView: View {
     
     // Validate the form and show an alert message if incomplete
     private func validateForm() -> Bool {
-        if category == nil {
-            alertMessage = "Please select a category."
+        if selectedCategory == nil {
+            showValidationError(message: "Please select a category.")
+            return false
+        } else if selectedJob == nil {
+            showValidationError(message: "Please select a job.")
             return false
         } else if workOrderDescription.isEmpty {
-            alertMessage = "Please provide a work order description."
+            showValidationError(message: "Please provide a work order description.")
             return false
         } else if selectedCustomer == nil {
-            alertMessage = "Please assign a customer."
+            showValidationError(message: "Please assign a customer.")
             return false
         } else if tasks.isEmpty {
-            alertMessage = "Please add at least one task."
+            showValidationError(message: "Please add at least one task.")
             return false
         } else if selectedTradesmen.isEmpty {
-            alertMessage = "Please assign at least one tradesman."
+            showValidationError(message: "Please assign at least one tradesman.")
             return false
         }
+
         return true
+    }
+
+    private func showValidationError(message: String) {
+        alertMessage = message
+        isShowingIncompleteAlert = true
     }
     
     // Add the work order to Core Data
@@ -361,7 +322,8 @@ struct NewWorkOrderView: View {
             let nextWorkOrderNumber = (highestWorkOrder?.workOrderNumber ?? 0) + 1
 
             let newWorkOrder = WorkOrder(context: viewContext)
-            newWorkOrder.category = category
+            newWorkOrder.category = selectedCategory?.name
+            newWorkOrder.job = selectedJob // Assuming `job` is a relationship in your `WorkOrder` entity.
             newWorkOrder.workOrderDescription = workOrderDescription
             newWorkOrder.status = status
             newWorkOrder.date = serviceDate
