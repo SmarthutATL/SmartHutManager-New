@@ -1,24 +1,35 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var authViewModel: AuthViewModel  // Access AuthViewModel for authentication logic
+    @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var showSplashScreen = true // Control splash visibility
 
     var body: some View {
-        // Check the authentication state and decide which view to show
-        if authViewModel.isLoading {
-            // Show splash screen while loading
-            SplashScreenView()
-        } else if authViewModel.isUserSignedIn {
-            // If the user is signed in, show the main app content
-            MainTabView()
-        } else {
-            // If the user is not signed in, show the sign-in screen
-            SignInView()
+        ZStack {
+            if showSplashScreen {
+                // Display the SplashScreenView
+                SplashScreenView()
+                    .transition(.opacity)
+                    .onAppear {
+                        // Force splash screen to stay for 10 seconds
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                            withAnimation {
+                                showSplashScreen = false
+                            }
+                        }
+                    }
+            } else {
+                // Show content based on authentication state
+                if authViewModel.isUserSignedIn {
+                    MainTabView(viewContext: viewContext) // Explicitly pass viewContext
+                        .environment(\.managedObjectContext, viewContext)
+                        .environmentObject(authViewModel)
+                } else {
+                    SignInView()
+                        .environmentObject(authViewModel)
+                }
+            }
         }
     }
-}
-
-#Preview {
-    ContentView()
-        .environmentObject(AuthViewModel()) // Inject the AuthViewModel for preview
 }

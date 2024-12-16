@@ -6,84 +6,89 @@ struct SubscriptionPlanView: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            // "Choose Your Plan" Header
-            Text("Choose Your Plan")
+            // Header
+            Text("Select Your Service Package")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .foregroundColor(.blue)
-                .padding(.leading)
-                .padding(.top)
+                .foregroundColor(.primary)
+                .padding(.leading, 16)
+                .padding(.top, 20)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 20) {
-                    // Starter Plan Card
-                    SubscriptionCardView(
-                        title: "Starter",
-                        price: "Free",
-                        description: "Quick video messages",
+                HStack(spacing: 16) {
+                    // Basic Plan
+                    ServiceCardView(
+                        title: "Basic Package",
+                        price: "$299",
+                        description: "Smart home essentials",
                         features: [
-                            "Up to 50 Creators Lite",
-                            "Up to 25 videos/person",
-                            "Up to 5 mins/video"
+                            "1 Smart Lock",
+                            "1 Smart Thermostat",
+                            "1 Doorbell Camera",
+                            "Free Installation"
                         ],
-                        isSelected: selectedPlan == "Starter",
+                        isSelected: selectedPlan == "Basic",
                         buttonAction: {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                                selectedPlan = "Starter"
-                                updatePlanInFirebase("Starter")
+                            withAnimation(.smooth) {
+                                selectedPlan = "Basic"
+                                updatePlanInFirebase("Basic")
                             }
                         }
                     )
-
-                    // Business Plan Card
-                    SubscriptionCardView(
-                        title: "Business",
-                        price: "$12.50 /mo",
-                        description: "Advanced recording & analytics",
+                    
+                    // Advanced Plan
+                    ServiceCardView(
+                        title: "Advanced Package",
+                        price: "$499",
+                        description: "Enhanced smart home setup",
                         features: [
-                            "Unlimited Creators",
-                            "Unlimited videos",
-                            "Unlimited recording length"
+                            "Everything in Basic",
+                            "3 Smart Plugs",
+                            "1 Interior Camera",
+                            "Ceiling Fan Installation"
                         ],
-                        isSelected: selectedPlan == "Business",
+                        isSelected: selectedPlan == "Advanced",
                         buttonAction: {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                                selectedPlan = "Business"
-                                updatePlanInFirebase("Business")
+                            withAnimation(.smooth) {
+                                selectedPlan = "Advanced"
+                                updatePlanInFirebase("Advanced")
                             }
                         }
                     )
-
-                    // Premium Plan Card
-                    SubscriptionCardView(
-                        title: "Premium",
-                        price: "$29.99 /mo",
-                        description: "All features unlocked",
+                    
+                    // Premium Plan
+                    ServiceCardView(
+                        title: "Premium Package",
+                        price: "$999",
+                        description: "Full-featured smart home",
                         features: [
-                            "Everything in Starter & Business",
-                            "Custom branding",
-                            "Advanced analytics",
-                            "Priority support"
+                            "Everything in Advanced",
+                            "2 Exterior Cameras",
+                            "Custom Lighting Setup",
+                            "Home Theater Integration"
                         ],
                         isSelected: selectedPlan == "Premium",
                         buttonAction: {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                            withAnimation(.smooth) {
                                 selectedPlan = "Premium"
                                 updatePlanInFirebase("Premium")
                             }
                         }
                     )
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
             }
-            .padding(.top)
+            .padding(.top, 10)
+
+            Spacer()
         }
-        .background(Color(UIColor.systemGray6).edgesIgnoringSafeArea(.all)) // Clean background
-        .navigationTitle("Settings")
+        .background(Color(UIColor.systemGroupedBackground).edgesIgnoringSafeArea(.all))
+        .navigationTitle("Service Packages")
     }
 }
 
-struct SubscriptionCardView: View {
+// MARK: - ServiceCardView
+struct ServiceCardView: View {
     let title: String
     let price: String
     let description: String
@@ -92,50 +97,54 @@ struct SubscriptionCardView: View {
     let buttonAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(title)
-                    .font(.title)
+                    .font(.headline)
                     .fontWeight(.bold)
                     .foregroundColor(.blue)
                 Spacer()
                 Text(price)
-                    .font(.title3)
+                    .font(.title2)
                     .fontWeight(.semibold)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.primary)
             }
+            .padding(.bottom, 4)
 
             Text(description)
-                .font(.headline)
-                .foregroundColor(.black) // Updated text color to black
+                .font(.subheadline)
+                .foregroundColor(.secondary)
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(features, id: \.self) { feature in
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.blue)
+                            .foregroundColor(.green)
                         Text(feature)
                             .font(.subheadline)
-                            .foregroundColor(.black) // Updated text color to black
+                            .foregroundColor(.primary)
                     }
                 }
             }
+            .padding(.top, 4)
 
             Button(action: buttonAction) {
                 Text(isSelected ? "Selected" : "Choose Plan")
                     .fontWeight(.bold)
                     .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(isSelected ? Color.blue.opacity(0.7) : Color.blue)
+                    .background(isSelected ? Color.blue.opacity(0.8) : Color.blue)
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }
+            .padding(.top, 10)
         }
         .padding()
-        .frame(width: 300, height: 350) // Fixed size for all cards
-        .background(Color.white) // Ensure consistency in dark mode
+        .frame(width: 320, height: 360)
+        .background(Color(UIColor.secondarySystemGroupedBackground))
         .cornerRadius(15)
-        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
-        .scaleEffect(isSelected ? 1.05 : 1.0) // Subtle animation for selection
+        .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
+        .scaleEffect(isSelected ? 1.05 : 1.0)
         .animation(.spring(response: 0.5, dampingFraction: 0.7), value: isSelected)
     }
 }
+

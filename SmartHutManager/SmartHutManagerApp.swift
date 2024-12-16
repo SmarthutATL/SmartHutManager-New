@@ -11,6 +11,7 @@ struct SmartHutManagerApp: App {
 
     @StateObject private var authViewModel = AuthViewModel()
     @Environment(\.scenePhase) private var scenePhase
+    @State private var showSplash = true
 
     init() {
         print("Initializing SmartHutManagerApp")
@@ -58,25 +59,37 @@ struct SmartHutManagerApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(authViewModel)
+            WindowGroup {
+                ZStack {
+                    if showSplash {
+                        SplashScreenView()
+                            .transition(.opacity)
+                    } else {
+                        MainTabView(viewContext: persistenceController.container.viewContext)
+                            .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                            .environmentObject(authViewModel)
+                    }
+                }
                 .onAppear {
-                    print("ContentView appeared")
+                    // Hide the splash screen after 2 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+                        withAnimation {
+                            showSplash = false
+                        }
+                    }
                 }
                 .onChange(of: scenePhase) {
                     if scenePhase == .background {
                         handleScenePhaseChange()
                     }
                 }
-                .preferredColorScheme(.dark)  // Force dark mode
+                .preferredColorScheme(.dark)
+            }
         }
-    }
 
-    private func handleScenePhaseChange() {
-        persistenceController.throttledSaveContext()
-    }
+        private func handleScenePhaseChange() {
+            persistenceController.throttledSaveContext()
+        }
 
     private func retroactivelyUpdateTradesmen(context: NSManagedObjectContext) {
         // Fetch all tradesmen to reset their points
@@ -139,39 +152,14 @@ struct SmartHutManagerApp: App {
     }
 }
 
-// MARK: - SplashScreenView (Handles loading/splash screen)
-struct SplashScreenView: View {
-    @State private var isActive = false
-
-    var body: some View {
-        ZStack {
-            Color.white.ignoresSafeArea()
-
-            VStack {
-                Spacer()
-                Image("smarthut_logo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 200, height: 200)
-                Spacer()
-            }
-        }
-        .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                withAnimation {
-                    isActive = true
-                }
-            }
-        }
-    }
-}
-
 // MARK: - MainTabView (Main tabs after signing in)
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Tradesmen.name, ascending: true)])
     var tradesmen: FetchedResults<Tradesmen>
-
+    
+    let viewContext: NSManagedObjectContext // Add this line
+    
     var body: some View {
         TabView {
             if authViewModel.userRole == "admin" {
@@ -183,7 +171,7 @@ struct MainTabView: View {
                     .tabItem {
                         Label("Scheduler", systemImage: "calendar")
                     }
-                InvoiceListView()
+                InvoiceListView(viewContext: viewContext) // Pass the viewContext
                     .tabItem {
                         Label("Invoices", systemImage: "doc.plaintext")
                     }

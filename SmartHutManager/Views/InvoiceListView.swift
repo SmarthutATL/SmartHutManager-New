@@ -3,329 +3,187 @@ import CoreData
 
 struct InvoiceListView: View {
     @Environment(\.managedObjectContext) private var viewContext
-
-    // Fetch all invoices from Core Data
-    @FetchRequest(
-        entity: Invoice.entity(),
-        sortDescriptors: [NSSortDescriptor(keyPath: \Invoice.issueDate, ascending: false)]
-    ) var invoices: FetchedResults<Invoice>
+    @StateObject private var controller: InvoiceController
     
-    @State private var searchQuery: String = "" // Search bar input
-    @State private var sortOption: InvoiceSortOption = .date(ascending: false) // Default sorting option
-    @State private var selectedJobCategory: String? = nil // Track selected job category for filtering
-    @State private var selectedPaidStatus: String? = nil // Track selected paid status for filtering
-    @State private var showingActionSheet = false // Single action sheet state
-    @State private var actionSheetType: ActionSheetType = .none // Track which action sheet is showing
-    
-    // Enum to track which action sheet to show
-    enum ActionSheetType {
-        case category
-        case paidStatus
-        case none
+    init(viewContext: NSManagedObjectContext) {
+        _controller = StateObject(wrappedValue: InvoiceController(viewContext: viewContext))
     }
     
-    // List of job categories
-    let jobCategories = [
-        "Accent Wall", "Camera Installation", "Drywall Repair", "Electrical", "Furniture Assembly",
-        "General Handyman", "Home Theater Installation", "Lighting", "Painting", "Picture Hanging",
-        "Plumbing", "Pressure Washing", "TV Mounting"
-    ]
-    
-    // List of statuses for invoices
-    let paidStatuses = ["Paid", "Unpaid"]
-    
-    // Calculate the total amount owed from unpaid invoices
-    private var totalAmountOwed: Double {
-        invoices
-            .filter { $0.status == "Unpaid" }
-            .reduce(0) { $0 + $1.computedTotalAmount }
-    }
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack {
-                // Search Bar and Filter/Sort Buttons
-                HStack {
-                    TextField("Search by customer, address, or phone", text: $searchQuery)
-                        .padding(7)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .padding(.horizontal)
-                    
-                    // Sort Menu
-                    Menu {
-                        Button(action: {
-                            toggleDateSort()
-                        }) { Text("Sort by Date (\(sortOption.isDateAscending ? "Newest" : "Oldest") First)") }
-                        Button(action: {
-                            sortOption = .amount(ascending: true)
-                        }) { Text("Sort by Amount (Lowest to Highest)") }
-                        Button(action: {
-                            sortOption = .amount(ascending: false)
-                        }) { Text("Sort by Amount (Highest to Lowest)") }
-                    } label: {
-                        Label("Sort", systemImage: "arrow.up.arrow.down.circle")
-                            .font(.title2)
-                    }
-                    .padding(.trailing, 8)
-                    
-                    // Filter Menu
-                    Menu {
-                        Button(action: {
-                            actionSheetType = .paidStatus
-                            showingActionSheet = true
-                        }) {
-                            Text("Filter by Paid Status")
-                        }
-
-                        Button(action: {
-                            actionSheetType = .category
-                            showingActionSheet = true
-                        }) {
-                            Text("Filter by Category")
-                        }
-                    } label: {
-                        Label("Filter", systemImage: "line.horizontal.3.decrease.circle")
-                            .font(.title2)
-                    }
-                    .padding(.trailing, 8)
-                }
-                .padding([.horizontal, .top])
+                // Filters and Sorting Header
+                headerView
                 
-                // Paid Status Filter Info
-                if let selectedPaidStatus = selectedPaidStatus {
-                    HStack {
-                        Text("Filtering by Status: \(selectedPaidStatus)")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Spacer()
-                        Button(action: {
-                            self.selectedPaidStatus = nil // Clear paid status filter
-                        }) {
-                            Text("Clear")
-                                .font(.caption)
-                                .foregroundColor(.red)
+                // Toggle View Button
+                toggleViewButton
+                
+                // Filters Section
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        FilterChip(title: "Paid", isSelected: controller.selectedPaidStatus == "Paid") {
+                            controller.togglePaidStatus("Paid")
+                        }
+                        FilterChip(title: "Unpaid", isSelected: controller.selectedPaidStatus == "Unpaid") {
+                            controller.togglePaidStatus("Unpaid")
+                        }
+                        ForEach(controller.jobCategories, id: \.self) { categoryEntity in
+                            FilterChip(
+                                title: categoryEntity.name ?? "Unknown Category",
+                                isSelected: controller.selectedJobCategory == categoryEntity.name
+                            ) {
+                                controller.toggleJobCategory(categoryEntity.name ?? "")
+                            }
                         }
                     }
                     .padding(.horizontal)
                 }
+                .padding(.vertical, 5)
                 
-                // Job Category Filter Info
-                if let selectedJobCategory = selectedJobCategory {
-                    HStack {
-                        Text("Filtering by Category: \(selectedJobCategory)")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Spacer()
-                        Button(action: {
-                            self.selectedJobCategory = nil // Clear category filter
-                        }) {
-                            Text("Clear")
-                                .font(.caption)
-                                .foregroundColor(.red)
+                // Invoice or Uninvoiced Work Order List
+                if controller.isShowingUninvoiced {
+                    // Display Work Orders Without Invoices
+                    if controller.uninvoicedWorkOrders.isEmpty {
+                        emptyStateView(message: "All work orders have invoices.")
+                    } else {
+                        List {
+                            ForEach(controller.uninvoicedWorkOrders, id: \.self) { workOrder in
+                                NavigationLink {
+                                    WorkOrderDetailView(workOrder: workOrder)
+                                } label: {
+                                    UninvoicedWorkOrderRow(workOrder: workOrder)
+                                }
+                            }
                         }
+                        .listStyle(.insetGrouped)
                     }
-                    .padding(.horizontal)
-                }
-                
-                // Filtered and sorted invoices list
-                List {
-                    ForEach(filteredInvoices) { invoice in
-                        NavigationLink(destination: InvoiceDetailView(invoice: invoice)) {
-                            InvoiceRow(invoice: invoice)
-                        }
-                    }
-                    .onDelete(perform: deleteInvoices)
-                }
-            }
-            .navigationTitle("Invoices")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    // Title and total owed amount side-by-side
-                    HStack {
-                        Text("Invoices")
-                            .font(.largeTitle)
-                            .bold()
-                        Spacer()
-                        Text("Owed: $\(totalAmountOwed, specifier: "%.2f")")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                    }
-                }
-                
-                // Add new invoice button
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: CreateInvoiceView()) {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
-            .actionSheet(isPresented: $showingActionSheet) {
-                if actionSheetType == .category {
-                    return ActionSheet(title: Text("Select Job Category"), buttons: jobCategoryPickerButtons())
                 } else {
-                    return ActionSheet(title: Text("Select Paid Status"), buttons: paidStatusPickerButtons())
+                    // Display Filtered Invoices
+                    if controller.filteredInvoices.isEmpty {
+                        emptyStateView(message: "No Invoices Found")
+                    } else {
+                        List {
+                            ForEach(controller.filteredInvoices) { invoice in
+                                NavigationLink(destination: InvoiceDetailView(invoice: invoice)) {
+                                    InvoiceRow(invoice: invoice)
+                                }
+                            }
+                            .onDelete { indexSet in
+                                controller.deleteInvoices(at: indexSet)
+                            }
+                        }
+                        .listStyle(.insetGrouped)
+                    }
                 }
             }
+            .navigationTitle(controller.isShowingUninvoiced ? "Uninvoiced Work Orders" : "Invoices")
+            .toolbar { toolbarView }
+            .searchable(text: $controller.searchQuery, prompt: controller.isShowingUninvoiced ? "Search work orders..." : "Search invoices...")
         }
-    }
-
-    // MARK: - Search, Filter, and Sort Logic
-    
-    private var filteredInvoices: [Invoice] {
-        var filtered = invoices.filter { invoice in
-            searchQuery.isEmpty || invoiceMatchesQuery(invoice)
-        }
-        
-        if let selectedJobCategory = selectedJobCategory {
-            filtered = filtered.filter { $0.workOrder?.category == selectedJobCategory }
-        }
-        
-        if let selectedPaidStatus = selectedPaidStatus {
-            filtered = filtered.filter {
-                $0.status?.caseInsensitiveCompare(selectedPaidStatus) == .orderedSame
-            }
-        }
-        
-        return filtered.sorted(by: sortOption.comparator)
-    }
-
-    private func invoiceMatchesQuery(_ invoice: Invoice) -> Bool {
-        let customer = invoice.workOrder?.customer
-        let customerName = customer?.name ?? ""
-        let customerAddress = customer?.address ?? ""
-        let customerPhone = customer?.phoneNumber ?? ""
-        
-        return customerName.localizedCaseInsensitiveContains(searchQuery)
-            || customerAddress.localizedCaseInsensitiveContains(searchQuery)
-            || customerPhone.localizedCaseInsensitiveContains(searchQuery)
     }
     
-    private func jobCategoryPickerButtons() -> [ActionSheet.Button] {
-        var buttons: [ActionSheet.Button] = jobCategories.map { category in
-            .default(Text(category)) {
-                self.selectedJobCategory = category
-                self.selectedPaidStatus = nil
-            }
-        }
-        buttons.append(.cancel())
-        return buttons
-    }
-    
-    private func paidStatusPickerButtons() -> [ActionSheet.Button] {
-        var buttons: [ActionSheet.Button] = paidStatuses.map { status in
-            .default(Text(status)) {
-                self.selectedPaidStatus = status
-                self.selectedJobCategory = nil
-            }
-        }
-        buttons.append(.cancel())
-        return buttons
-    }
-
-    private func toggleDateSort() {
-        if case .date(let ascending) = sortOption {
-            sortOption = .date(ascending: !ascending)
-            self.selectedJobCategory = nil
-            self.selectedPaidStatus = nil
-        } else {
-            sortOption = .date(ascending: true)
-        }
-    }
-
-    private func deleteInvoices(offsets: IndexSet) {
-        for index in offsets {
-            let invoiceToDelete = filteredInvoices[index]
-            viewContext.delete(invoiceToDelete)
-        }
-
-        do {
-            try viewContext.save()
-        } catch {
-            print("Failed to delete invoice: \(error)")
-        }
-    }
-}
-
-// MARK: - InvoiceRow: Displays each invoice in a list row
-struct InvoiceRow: View {
-    @ObservedObject var invoice: Invoice
-
-    // Compute total amount from both services and materials, including tax
-    var totalAmount: Double {
-        let serviceTotal = invoice.itemizedServicesArray.reduce(0) { total, service in
-            total + (service.unitPrice * Double(service.quantity))
-        }
-        let materialTotal = invoice.workOrder?.materialsArray.reduce(0) { total, material in
-            total + (material.price * Double(material.quantity))
-        } ?? 0.0
-        let combinedSubtotal = serviceTotal + materialTotal
-        let taxAmount = (combinedSubtotal * (invoice.taxPercentage / 100))  // Calculate the tax amount
-        return combinedSubtotal + taxAmount
-    }
-
-    var body: some View {
+    // MARK: - Header View
+    private var headerView: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 5) {
-                // Display customer name and invoice number on the same line
-                HStack {
-                    Text(invoice.workOrder?.customer?.name ?? "Unknown Customer")
-                        .font(.headline)
-                    Text("#\(invoice.invoiceNumber)")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-
-                if let category = invoice.workOrder?.category {
-                    Text("Job Category: \(category)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                
-                Text(invoice.status ?? "Unpaid")
-                    .font(.subheadline)
-                    .foregroundColor(invoice.status == "Paid" ? .green : .red)
+            if !controller.isShowingUninvoiced {
+                Text("Total Owed: $\(controller.totalAmountOwed, specifier: "%.2f")")
+                    .font(.headline)
+                    .foregroundColor(.red)
             }
             Spacer()
-            Text("$\(totalAmount, specifier: "%.2f")") // Display total amount
+            Menu {
+                Section(header: Text("Sort Options")) {
+                    Button("Date (\(controller.sortOption.isDateAscending ? "Newest" : "Oldest") First)") {
+                        controller.toggleDateSort()
+                    }
+                    Button("Amount (Low to High)") {
+                        controller.sortOption = .amount(ascending: true)
+                    }
+                    Button("Amount (High to Low)") {
+                        controller.sortOption = .amount(ascending: false)
+                    }
+                }
+            } label: {
+                Image(systemName: "line.horizontal.3.decrease.circle")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+            }
+        }
+        .padding(.horizontal)
+    }
+    
+    // MARK: - Toggle View Button
+    private var toggleViewButton: some View {
+        Button(action: controller.toggleUninvoicedView) {
+            Text(controller.isShowingUninvoiced ? "Show Invoices" : "Show Work Orders Without Invoices")
                 .font(.headline)
+                .foregroundColor(.blue)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.blue.opacity(0.1))
+                .clipShape(Capsule())
+                .padding(.horizontal)
+        }
+    }
+    
+    // MARK: - Empty State View
+    private func emptyStateView(message: String) -> some View {
+        VStack {
+            Spacer()
+            Text(message)
+                .font(.title2)
+                .foregroundColor(.secondary)
+            Spacer()
+        }
+    }
+    
+    // MARK: - Toolbar View
+    private var toolbarView: some ToolbarContent {
+        ToolbarItemGroup(placement: .navigationBarTrailing) {
+            if !controller.isShowingUninvoiced {
+                NavigationLink(destination: CreateInvoiceView()) {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                }
+            }
         }
     }
 }
 
-// MARK: - Sorting Options for Invoices
-enum InvoiceSortOption {
-    case amount(ascending: Bool)
-    case date(ascending: Bool)
+// MARK: - FilterChip Component
+struct FilterChip: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
     
-    var isDateAscending: Bool {
-        if case .date(let ascending) = self {
-            return ascending
-        }
-        return true
-    }
-    
-    var comparator: (Invoice, Invoice) -> Bool {
-        switch self {
-        case .amount(let ascending):
-            return { ascending ? $0.computedTotalAmount < $1.computedTotalAmount : $0.computedTotalAmount > $1.computedTotalAmount }
-        case .date(let ascending):
-            return { ascending ? ($0.issueDate ?? Date()) < ($1.issueDate ?? Date()) : ($0.issueDate ?? Date()) > ($1.issueDate ?? Date()) }
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(isSelected ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
+                .foregroundColor(isSelected ? .blue : .primary)
+                .clipShape(Capsule())
         }
     }
 }
 
-// MARK: - Extension to Calculate Total Amount in Invoice
-extension Invoice {
-    var computedTotalAmount: Double {
-        let serviceTotal = itemizedServicesArray.reduce(0) { total, service in
-            total + (service.unitPrice * Double(service.quantity))
+// MARK: - Uninvoiced Work Order Row
+struct UninvoicedWorkOrderRow: View {
+    let workOrder: WorkOrder
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(workOrder.customer?.name ?? "Unknown Customer")
+                .font(.headline)
+            Text("Category: \(workOrder.category ?? "N/A")")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Text("Date: \(workOrder.date ?? Date(), style: .date)")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
         }
-        let materialTotal = workOrder?.materialsArray.reduce(0) { total, material in
-            total + (material.price * Double(material.quantity))
-        } ?? 0.0
-        let combinedSubtotal = serviceTotal + materialTotal
-        let taxAmount = (combinedSubtotal * (self.taxPercentage / 100)) // Calculate the tax
-        return combinedSubtotal + taxAmount // Include the tax in the total
+        .padding(.vertical, 4)
     }
 }
