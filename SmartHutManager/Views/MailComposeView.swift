@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MessageUI
 
 // Email View for sending mail
 struct MailComposeView: UIViewControllerRepresentable {

@@ -185,7 +185,7 @@ struct MainTabView: View {
                     }
                 }
                 .tabItem {
-                    Label("Tech", systemImage: "wrench.fill")
+                    Label("Leaderboards", systemImage: "wrench.fill")
                 }
                 SettingsView()
                     .tabItem {

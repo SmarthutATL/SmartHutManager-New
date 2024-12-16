@@ -145,5 +145,6 @@ class InvoiceController: ObservableObject {
         } else {
             sortOption = .date(ascending: true)
         }
+        
     }
 }
