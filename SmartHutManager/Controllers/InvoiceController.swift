@@ -12,6 +12,9 @@ class InvoiceController: ObservableObject {
     @Published var isShowingUninvoiced: Bool = false // Toggle between invoices and work orders
     
     @Published var jobCategories: [JobCategoryEntity] = [] // Dynamically fetched job categories
+    
+    // NEW: Show Create Invoice View
+    @Published var showCreateInvoiceView: Bool = false
 
     private var viewContext: NSManagedObjectContext
     

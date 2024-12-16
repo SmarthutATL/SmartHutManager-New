@@ -3,109 +3,126 @@ import SwiftUI
 struct CRMView: View {
     @Environment(\.managedObjectContext) private var viewContext
     
-    // State to manage search query
+    // State for search query and add customer view
     @State private var searchText = ""
     @State private var showingAddCustomerView = false
 
-    // Fetch request to retrieve customers from Core Data
+    // Fetch customers from Core Data
     @FetchRequest(
-        sortDescriptors: [],
+        sortDescriptors: [NSSortDescriptor(keyPath: \Customer.name, ascending: true)],
         animation: .default
     ) private var customers: FetchedResults<Customer>
     
-    
-    // Filtered customers based on search query, sorted by last name
-    var filteredCustomers: [(Customer, String?)] {
-        // Sorting by last name here instead of relying on FetchRequest sorting
-        let sortedCustomers = customers.sorted { first, second in
-            let firstLastName = first.lastName
-            let secondLastName = second.lastName
-            return firstLastName.localizedCaseInsensitiveCompare(secondLastName) == .orderedAscending
+    // Grouped customers based on the search query
+    private var groupedCustomers: [String: [Customer]] {
+        let filtered = customers.filter { customer in
+            searchText.isEmpty ||
+            customer.name?.localizedCaseInsensitiveContains(searchText) == true ||
+            customer.phoneNumber?.localizedCaseInsensitiveContains(searchText) == true ||
+            customer.address?.localizedCaseInsensitiveContains(searchText) == true
         }
         
-        // Apply search filtering
-        if searchText.isEmpty {
-            return sortedCustomers.map { ($0, nil) }
-        } else {
-            return sortedCustomers.compactMap { customer in
-                if let name = customer.name, name.localizedCaseInsensitiveContains(searchText) {
-                    return (customer, nil)
-                } else if let phone = customer.phoneNumber, phone.localizedCaseInsensitiveContains(searchText) {
-                    return (customer, "Match found in: phone number")
-                } else if let address = customer.address, address.localizedCaseInsensitiveContains(searchText) {
-                    return (customer, "Match found in: address")
-                } else {
-                    return nil
-                }
-            }
+        return Dictionary(grouping: filtered) { customer in
+            String(customer.name?.prefix(1).uppercased() ?? "#")
         }
     }
     
     var body: some View {
         NavigationView {
-            VStack {
-                // Search bar
-                HStack {
-                    TextField("Search by name, phone, or address", text: $searchText)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .padding(.horizontal)
-                    Button(action: {
-                        showingAddCustomerView.toggle()
-                    }) {
-                        Image(systemName: "plus")
-                            .font(.title2)
-                            .padding(.trailing)
-                    }
-                }
-
-                // Customer list
-                List {
-                    ForEach(filteredCustomers, id: \.0.objectID) { (customer, matchInfo) in
-                        NavigationLink(destination: CustomerDetailView(customer: customer)) {
-                            VStack(alignment: .leading) {
-                                Text(customer.name ?? "Unknown")
-                                
-                                // Conditionally show match info if available (i.e., not from name)
-                                if let matchInfo = matchInfo {
-                                    Text(matchInfo)
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
+            ZStack {
+                VStack {
+                    // Header with search bar
+                    headerView
+                    
+                    // Grouped customer list
+                    List {
+                        ForEach(groupedCustomers.keys.sorted(), id: \.self) { key in
+                            Section(header: Text(key).font(.headline)) {
+                                ForEach(groupedCustomers[key] ?? [], id: \.objectID) { customer in
+                                    NavigationLink(destination: CustomerDetailView(customer: customer)) {
+                                        customerRow(for: customer)
+                                    }
+                                }
+                                .onDelete { offsets in
+                                    deleteCustomers(from: groupedCustomers[key] ?? [], offsets: offsets)
                                 }
                             }
                         }
                     }
-                    .onDelete(perform: deleteCustomers)
+                    .listStyle(InsetGroupedListStyle())
+                }
+                .navigationTitle("Customers")
+                
+                // Floating Add Customer Button
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            showingAddCustomerView.toggle()
+                        }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.blue)
+                                .clipShape(Circle())
+                                .shadow(radius: 4)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
+                    }
                 }
             }
-            .navigationTitle("Customers")
             .sheet(isPresented: $showingAddCustomerView) {
-                AddCustomerView(onCustomerCreated: { newCustomer in
-                    addNewCustomerToCRM(newCustomer)
-                })
+                AddCustomerView { newCustomer in
+                    addNewCustomer(newCustomer)
+                }
             }
         }
     }
-
-    // Function to add the new customer to the CRM
-    private func addNewCustomerToCRM(_ customer: Customer) {
-        showingAddCustomerView = false
+    
+    // MARK: - Header View
+    private var headerView: some View {
+        HStack {
+            TextField("Search by name, phone, or address", text: $searchText)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .padding(.horizontal)
+        }
+        .padding(.vertical, 8)
+        .background(Color(.systemGray6))
+    }
+    
+    // MARK: - Customer Row View
+    private func customerRow(for customer: Customer) -> some View {
+        Text(customer.name ?? "Unknown")
+            .font(.body)
+            .fontWeight(.medium)
+            .padding(.vertical, 4)
     }
 
-    // Function to delete a customer
-    private func deleteCustomers(offsets: IndexSet) {
+    // MARK: - Add Customer Logic
+    private func addNewCustomer(_ customer: Customer) {
         withAnimation {
-            for index in offsets {
-                let customer = filteredCustomers[index].0 // Get the customer from the filtered list
-                if let customerToDelete = customers.first(where: { $0.objectID == customer.objectID }) {
-                    viewContext.delete(customerToDelete)
-                }
-            }
+            viewContext.insert(customer)
+            saveContext()
+            showingAddCustomerView = false
+        }
+    }
+    
+    // MARK: - Delete Customers Logic
+    private func deleteCustomers(from group: [Customer], offsets: IndexSet) {
+        withAnimation {
+            offsets.map { group[$0] }.forEach(viewContext.delete)
+            saveContext()
+        }
+    }
 
-            do {
-                try viewContext.save()
-            } catch {
-                print("Failed to delete customer: \(error.localizedDescription)")
-            }
+    private func saveContext() {
+        do {
+            try viewContext.save()
+        } catch {
+            print("Failed to save context: \(error.localizedDescription)")
         }
     }
 }
@@ -113,12 +130,8 @@ struct CRMView: View {
 // MARK: - Customer Last Name Computed Property
 extension Customer {
     var lastName: String {
-        // Split the name by spaces, remove any empty components, and take all components after the first one as the "last name".
         let nameComponents = name?.components(separatedBy: " ").filter { !$0.isEmpty } ?? []
-        
-        // If there's only one component, return it as the last name (single-word name). Otherwise, return all components except the first as the "last name."
         let lastNameComponents = nameComponents.dropFirst().joined(separator: " ")
-        
         return lastNameComponents.isEmpty ? nameComponents.first ?? "" : lastNameComponents
     }
 }

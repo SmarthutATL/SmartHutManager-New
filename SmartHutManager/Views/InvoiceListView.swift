@@ -11,74 +11,100 @@ struct InvoiceListView: View {
     
     var body: some View {
         NavigationStack {
-            VStack {
-                // Filters and Sorting Header
-                headerView
-                
-                // Toggle View Button
-                toggleViewButton
-                
-                // Filters Section
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        FilterChip(title: "Paid", isSelected: controller.selectedPaidStatus == "Paid") {
-                            controller.togglePaidStatus("Paid")
-                        }
-                        FilterChip(title: "Unpaid", isSelected: controller.selectedPaidStatus == "Unpaid") {
-                            controller.togglePaidStatus("Unpaid")
-                        }
-                        ForEach(controller.jobCategories, id: \.self) { categoryEntity in
-                            FilterChip(
-                                title: categoryEntity.name ?? "Unknown Category",
-                                isSelected: controller.selectedJobCategory == categoryEntity.name
-                            ) {
-                                controller.toggleJobCategory(categoryEntity.name ?? "")
+            ZStack {
+                VStack {
+                    // Filters and Sorting Header
+                    headerView
+                    
+                    // Toggle View Button
+                    toggleViewButton
+                    
+                    // Filters Section
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            FilterChip(title: "Paid", isSelected: controller.selectedPaidStatus == "Paid") {
+                                controller.togglePaidStatus("Paid")
+                            }
+                            FilterChip(title: "Unpaid", isSelected: controller.selectedPaidStatus == "Unpaid") {
+                                controller.togglePaidStatus("Unpaid")
+                            }
+                            ForEach(controller.jobCategories, id: \.self) { categoryEntity in
+                                FilterChip(
+                                    title: categoryEntity.name ?? "Unknown Category",
+                                    isSelected: controller.selectedJobCategory == categoryEntity.name
+                                ) {
+                                    controller.toggleJobCategory(categoryEntity.name ?? "")
+                                }
                             }
                         }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
+                    .padding(.vertical, 5)
+                    
+                    // Invoice or Uninvoiced Work Order List
+                    if controller.isShowingUninvoiced {
+                        // Display Work Orders Without Invoices
+                        if controller.uninvoicedWorkOrders.isEmpty {
+                            emptyStateView(message: "All work orders have invoices.")
+                        } else {
+                            List {
+                                ForEach(controller.uninvoicedWorkOrders, id: \.self) { workOrder in
+                                    NavigationLink {
+                                        WorkOrderDetailView(workOrder: workOrder)
+                                    } label: {
+                                        UninvoicedWorkOrderRow(workOrder: workOrder)
+                                    }
+                                }
+                            }
+                            .listStyle(.insetGrouped)
+                        }
+                    } else {
+                        // Display Filtered Invoices
+                        if controller.filteredInvoices.isEmpty {
+                            emptyStateView(message: "No Invoices Found")
+                        } else {
+                            List {
+                                ForEach(controller.filteredInvoices) { invoice in
+                                    NavigationLink(destination: InvoiceDetailView(invoice: invoice)) {
+                                        InvoiceRow(invoice: invoice)
+                                    }
+                                }
+                                .onDelete { indexSet in
+                                    controller.deleteInvoices(at: indexSet)
+                                }
+                            }
+                            .listStyle(.insetGrouped)
+                        }
+                    }
                 }
-                .padding(.vertical, 5)
+                .navigationTitle(controller.isShowingUninvoiced ? "Uninvoiced Work Orders" : "Invoices")
+                .searchable(text: $controller.searchQuery, prompt: controller.isShowingUninvoiced ? "Search work orders..." : "Search invoices...")
                 
-                // Invoice or Uninvoiced Work Order List
-                if controller.isShowingUninvoiced {
-                    // Display Work Orders Without Invoices
-                    if controller.uninvoicedWorkOrders.isEmpty {
-                        emptyStateView(message: "All work orders have invoices.")
-                    } else {
-                        List {
-                            ForEach(controller.uninvoicedWorkOrders, id: \.self) { workOrder in
-                                NavigationLink {
-                                    WorkOrderDetailView(workOrder: workOrder)
-                                } label: {
-                                    UninvoicedWorkOrderRow(workOrder: workOrder)
-                                }
-                            }
+                // Floating Add Invoice Button
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            controller.showCreateInvoiceView.toggle()
+                        }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.blue)
+                                .clipShape(Circle())
+                                .shadow(radius: 4)
                         }
-                        .listStyle(.insetGrouped)
-                    }
-                } else {
-                    // Display Filtered Invoices
-                    if controller.filteredInvoices.isEmpty {
-                        emptyStateView(message: "No Invoices Found")
-                    } else {
-                        List {
-                            ForEach(controller.filteredInvoices) { invoice in
-                                NavigationLink(destination: InvoiceDetailView(invoice: invoice)) {
-                                    InvoiceRow(invoice: invoice)
-                                }
-                            }
-                            .onDelete { indexSet in
-                                controller.deleteInvoices(at: indexSet)
-                            }
-                        }
-                        .listStyle(.insetGrouped)
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
                     }
                 }
             }
-            .navigationTitle(controller.isShowingUninvoiced ? "Uninvoiced Work Orders" : "Invoices")
-            .toolbar { toolbarView }
-            .searchable(text: $controller.searchQuery, prompt: controller.isShowingUninvoiced ? "Search work orders..." : "Search invoices...")
+            // Sheet to display CreateInvoiceView
+            .sheet(isPresented: $controller.showCreateInvoiceView) {
+                CreateInvoiceView()
+            }
         }
     }
     
@@ -134,18 +160,6 @@ struct InvoiceListView: View {
                 .font(.title2)
                 .foregroundColor(.secondary)
             Spacer()
-        }
-    }
-    
-    // MARK: - Toolbar View
-    private var toolbarView: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigationBarTrailing) {
-            if !controller.isShowingUninvoiced {
-                NavigationLink(destination: CreateInvoiceView()) {
-                    Image(systemName: "plus")
-                        .font(.title2)
-                }
-            }
         }
     }
 }
