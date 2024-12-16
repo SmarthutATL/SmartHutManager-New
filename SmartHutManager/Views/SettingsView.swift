@@ -1,4 +1,5 @@
 import SwiftUI
+import LocalAuthentication
 import CoreData
 import FirebaseAuth
 import FirebaseFirestore
@@ -20,6 +21,8 @@ struct SettingsView: View {
     @State private var isShowingTradesmenList = false
     @State private var isShowingSubscriptionPlanView = false
     @EnvironmentObject var authViewModel: AuthViewModel
+    
+    @State private var authenticationFailed = false
 
     var body: some View {
         NavigationView {
@@ -37,9 +40,6 @@ struct SettingsView: View {
                     cardView {
                         SettingsItem(icon: "trash.fill", title: "Recently Deleted Items", color: .red)
                             .foregroundColor(.white)
-                            .onTapGesture {
-                                // Show recently deleted items
-                            }
                     }
 
                     // Subscription Plan Section
@@ -72,13 +72,18 @@ struct SettingsView: View {
                             }
                     }
 
-                    // Technician Management Section
+                    // Technician Management Section (Face ID Authentication)
                     cardView {
-                        SettingsItem(icon: "person.2.fill", title: "Manage Technicians", color: .blue)
-                            .foregroundColor(.white)
-                            .onTapGesture {
-                                isShowingTradesmenList.toggle()
+                        Button(action: {
+                            authenticateUser()
+                        }) {
+                            HStack {
+                                SettingsItem(icon: "person.2.fill", title: "Manage Technicians", color: .blue)
+                                    .foregroundColor(.white)
+                                Spacer() // To ensure the title aligns well
                             }
+                        }
+                        .buttonStyle(PlainButtonStyle()) // Ensure the button covers the whole card
                     }
 
                     // Manage Job Categories Section
@@ -129,6 +134,30 @@ struct SettingsView: View {
                 }
             }
             .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
+        }
+    }
+
+    // MARK: - Face ID / Passcode Authentication
+    private func authenticateUser() {
+        let context = LAContext()
+        var error: NSError?
+
+        // Check if Face ID or Passcode is available
+        if context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) {
+            let reason = "Authenticate to manage technicians"
+
+            context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, authenticationError in
+                DispatchQueue.main.async {
+                    if success {
+                        isShowingTradesmenList = true
+                    } else {
+                        authenticationFailed = true
+                    }
+                }
+            }
+        } else {
+            // Device does not support Face ID or Passcode
+            print("Face ID / Passcode not available.")
         }
     }
 
