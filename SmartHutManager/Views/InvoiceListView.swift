@@ -112,11 +112,31 @@ struct InvoiceListView: View {
     private var headerView: some View {
         HStack {
             if !controller.isShowingUninvoiced {
-                Text("Total Owed: $\(controller.totalAmountOwed, specifier: "%.2f")")
-                    .font(.headline)
-                    .foregroundColor(.red)
+                HStack(alignment: .center, spacing: 8) {
+                    Image(systemName: "dollarsign.circle.fill")
+                        .font(.title)
+                        .foregroundColor(.red)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Total Owed")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                        
+                        Text("$\(controller.totalAmountOwed, specifier: "%.2f")")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.red)
+                    }
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .background(Color(.secondarySystemBackground))
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
             }
+            
             Spacer()
+            
             Menu {
                 Section(header: Text("Sort Options")) {
                     Button("Date (\(controller.sortOption.isDateAscending ? "Newest" : "Oldest") First)") {
@@ -137,7 +157,6 @@ struct InvoiceListView: View {
         }
         .padding(.horizontal)
     }
-    
     // MARK: - Toggle View Button
     private var toggleViewButton: some View {
         Button(action: controller.toggleUninvoicedView) {

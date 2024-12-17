@@ -189,7 +189,7 @@ struct MainTabView: View {
                 }
                 SettingsView()
                     .tabItem {
-                        Label("More", systemImage: "gearshape.fill")
+                        Label("Settings", systemImage: "gearshape.fill")
                     }
             } else if authViewModel.userRole == "technician" {
                 JobSchedulerView()
@@ -198,7 +198,7 @@ struct MainTabView: View {
                     }
                 SettingsView()
                     .tabItem {
-                        Label("More", systemImage: "gearshape.fill")
+                        Label("Settings", systemImage: "gearshape.fill")
                     }
             }
         }
