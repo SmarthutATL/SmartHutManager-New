@@ -12,6 +12,7 @@ class InvoiceController: ObservableObject {
     @Published var isShowingUninvoiced: Bool = false // Toggle between invoices and work orders
     
     @Published var jobCategories: [JobCategoryEntity] = [] // Dynamically fetched job categories
+    @Published var isTotalOwedVisible: Bool = false // Toggle to show/hide total owed
     
     // NEW: Show Create Invoice View
     @Published var showCreateInvoiceView: Bool = false
@@ -145,6 +146,9 @@ class InvoiceController: ObservableObject {
         } else {
             sortOption = .date(ascending: true)
         }
-        
+    }
+    // MARK: - Total Owed Toggle Visibility
+    func toggleTotalOwedVisibility() {
+        isTotalOwedVisible.toggle()
     }
 }

@@ -112,27 +112,41 @@ struct InvoiceListView: View {
     private var headerView: some View {
         HStack {
             if !controller.isShowingUninvoiced {
-                HStack(alignment: .center, spacing: 8) {
-                    Image(systemName: "dollarsign.circle.fill")
-                        .font(.title)
-                        .foregroundColor(.red)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Total Owed")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        
-                        Text("$\(controller.totalAmountOwed, specifier: "%.2f")")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .foregroundColor(.red)
+                Button(action: {
+                    withAnimation(.easeInOut) {
+                        controller.toggleTotalOwedVisibility()
                     }
+                }) {
+                    HStack(alignment: .center, spacing: 8) {
+                        Image(systemName: "dollarsign.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.red)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Total Owed")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            
+                            if controller.isTotalOwedVisible {
+                                Text("$\(controller.totalAmountOwed, specifier: "%.2f")")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.red)
+                            } else {
+                                Text("Tap to View")
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(12)
+                    .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
                 }
-                .padding(.vertical, 8)
-                .padding(.horizontal, 16)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(12)
-                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .buttonStyle(PlainButtonStyle())
             }
             
             Spacer()

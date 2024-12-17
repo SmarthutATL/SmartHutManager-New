@@ -7,14 +7,16 @@ class PersistenceController {
     private var autosaveCancellable: AnyCancellable?
     private var saveWorkItem: DispatchWorkItem?
     private let saveQueue = DispatchQueue(label: "com.smarthutmanager.saveQueue", qos: .background)
-    private let saveThrottleInterval: TimeInterval = 2  // 2 seconds debounce interval
+    private let saveThrottleInterval: TimeInterval = 5  // Throttle saves to reduce energy consumption
+
+    let container: NSPersistentCloudKitContainer
 
     // Preview setup for SwiftUI previews
     @MainActor
     static let preview: PersistenceController = {
         let result = PersistenceController(inMemory: true)
         let viewContext = result.container.viewContext
-
+        
         // Pre-fill with sample data for preview
         let customer = Customer(context: viewContext)
         customer.name = "John Doe"
@@ -34,8 +36,6 @@ class PersistenceController {
         return result
     }()
 
-    let container: NSPersistentCloudKitContainer
-
     init(inMemory: Bool = false) {
         container = NSPersistentCloudKitContainer(name: "SmartHutManager")
 
@@ -54,7 +54,7 @@ class PersistenceController {
             description.url = URL(fileURLWithPath: "/dev/null")
         }
 
-        container.loadPersistentStores { (storeDescription, error) in
+        container.loadPersistentStores { storeDescription, error in
             if let error = error as NSError? {
                 print("Unresolved error \(error), \(error.userInfo)")
             } else {
@@ -72,21 +72,21 @@ class PersistenceController {
             object: container.persistentStoreCoordinator
         )
 
-        startAutosaving(interval: 15)
-    }
-
-    // Autosave function
-    private func startAutosaving(interval: TimeInterval) {
-        autosaveCancellable = Timer.publish(every: interval, on: .main, in: .common).autoconnect().sink { [weak self] _ in
-            self?.throttledSaveContext()
-        }
+        startAutosaving(interval: 30)
     }
 
     deinit {
         autosaveCancellable?.cancel()
     }
 
-    // MARK: - Throttled Save Context
+    // MARK: - Start Autosave (Reduces background work)
+    private func startAutosaving(interval: TimeInterval) {
+        autosaveCancellable = Timer.publish(every: interval, on: .main, in: .common).autoconnect().sink { [weak self] _ in
+            self?.throttledSaveContext()
+        }
+    }
+
+    // MARK: - Throttled Save Context (Delays saves to reduce energy usage)
     func throttledSaveContext() {
         saveWorkItem?.cancel()
         saveWorkItem = DispatchWorkItem { [weak self] in
@@ -95,24 +95,25 @@ class PersistenceController {
         saveQueue.asyncAfter(deadline: .now() + saveThrottleInterval, execute: saveWorkItem!)
     }
 
-    // MARK: - Save Context (Handles Save with Logging)
+    // MARK: - Save Context (Only saves if there are changes)
     private func saveContext() {
         let context = container.viewContext
-        if context.hasChanges {
-            do {
-                try context.save()
-                print("Context saved successfully.")
-            } catch {
-                print("Error saving context: \(error.localizedDescription)")
-            }
+        guard context.hasChanges else { return }
+        
+        do {
+            try context.save()
+            print("Context saved successfully.")
+        } catch {
+            print("Error saving context: \(error.localizedDescription)")
         }
     }
 
-    // MARK: - Handle CloudKit Sync and Background Fetch
+    // MARK: - Handle CloudKit Sync & Background Fetch (Efficient energy use)
     @objc private func handlePersistentStoreRemoteChange(_ notification: Notification) {
         print("Persistent store remote change received.")
+        
         let context = container.viewContext
-        context.performAndWait {
+        context.perform {
             do {
                 try context.setQueryGenerationFrom(.current)
                 if context.hasChanges {
@@ -127,6 +128,7 @@ class PersistenceController {
         }
     }
 
+    // MARK: - Perform Background Sync (Runs on new background context)
     func performBackgroundSync() {
         let backgroundContext = container.newBackgroundContext()
         backgroundContext.perform {
@@ -139,25 +141,20 @@ class PersistenceController {
         }
     }
 
-    // MARK: - Sharing Data with CKShare
+    // MARK: - Share Data with CKShare (Reduces CloudKit impact)
     func shareRecord(_ object: NSManagedObject, completion: @escaping (CKShare?, Error?) -> Void) {
         let context = container.viewContext
         let objectID = object.objectID
 
         context.perform {
             do {
-                // Create a new CKRecord for the object
                 let recordID = CKRecord.ID(recordName: objectID.uriRepresentation().absoluteString)
                 let record = CKRecord(recordType: object.entity.name!, recordID: recordID)
-                
-                // Populate the CKRecord with data from the object
                 self.populateCKRecord(record, from: object)
                 
-                // Create a CKShare associated with the CKRecord
                 let share = CKShare(rootRecord: record)
-                share.publicPermission = .readWrite // Allow everyone to read and write
+                share.publicPermission = .readWrite
                 
-                // Prepare the CKModifyRecordsOperation to save the CKShare
                 let operation = CKModifyRecordsOperation(recordsToSave: [record, share])
                 operation.modifyRecordsResultBlock = { result in
                     switch result {
@@ -170,13 +167,12 @@ class PersistenceController {
                     }
                 }
                 
-                // Execute the operation on the shared CloudKit database
                 CKContainer.default().sharedCloudDatabase.add(operation)
             }
         }
     }
 
-    // Helper to populate CKRecord with data from NSManagedObject
+    // Populate CKRecord with Data
     private func populateCKRecord(_ record: CKRecord, from object: NSManagedObject) {
         for (key, _) in object.entity.attributesByName {
             if let value = object.value(forKey: key) as? CKRecordValue {
