@@ -1,14 +1,12 @@
-
 import SwiftUI
 import CoreData
 
-// MARK: - MainTabView (Main tabs after signing in)
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Tradesmen.name, ascending: true)])
     var tradesmen: FetchedResults<Tradesmen>
     
-    let viewContext: NSManagedObjectContext // Add this line
+    let viewContext: NSManagedObjectContext
     
     var body: some View {
         TabView {
@@ -21,11 +19,10 @@ struct MainTabView: View {
                     .tabItem {
                         Label("Scheduler", systemImage: "calendar")
                     }
-                InvoiceListView(viewContext: viewContext) // Pass the viewContext
+                MessagesView()
                     .tabItem {
-                        Label("Invoices", systemImage: "doc.plaintext")
+                        Label("Messages", systemImage: "message.fill")
                     }
-                // Tech Tab - Filter tradesmen by signed-in email
                 NavigationView {
                     if let userEmail = authViewModel.currentUserEmail,
                        let currentTradesman = tradesmen.first(where: { $0.email?.lowercased() == userEmail }) {
@@ -45,6 +42,10 @@ struct MainTabView: View {
                 JobSchedulerView()
                     .tabItem {
                         Label("Scheduler", systemImage: "calendar")
+                    }
+                MessagesView()
+                    .tabItem {
+                        Label("Messages", systemImage: "message.fill")
                     }
                 SettingsView()
                     .tabItem {

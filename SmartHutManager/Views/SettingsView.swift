@@ -4,6 +4,7 @@ import CoreData
 import FirebaseAuth
 import FirebaseFirestore
 
+
 struct SettingsView: View {
     @FetchRequest(
         entity: Tradesmen.entity(),
@@ -21,7 +22,8 @@ struct SettingsView: View {
     @State private var isShowingTradesmenList = false
     @State private var isShowingSubscriptionPlanView = false
     @EnvironmentObject var authViewModel: AuthViewModel
-    
+    @Environment(\.managedObjectContext) private var viewContext
+
     @State private var authenticationFailed = false
 
     var body: some View {
@@ -72,6 +74,14 @@ struct SettingsView: View {
                             }
                     }
 
+                    // Invoices Section
+                    cardView {
+                        NavigationLink(destination: InvoiceListView(viewContext: viewContext)) {
+                            SettingsItem(icon: "doc.plaintext", title: "Manage Invoices", color: .blue)
+                                .foregroundColor(.white)
+                        }
+                    }
+
                     // Technician Management Section (Face ID Authentication)
                     cardView {
                         Button(action: {
@@ -80,10 +90,10 @@ struct SettingsView: View {
                             HStack {
                                 SettingsItem(icon: "person.2.fill", title: "Manage Technicians", color: .blue)
                                     .foregroundColor(.white)
-                                Spacer() // To ensure the title aligns well
+                                Spacer()
                             }
                         }
-                        .buttonStyle(PlainButtonStyle()) // Ensure the button covers the whole card
+                        .buttonStyle(PlainButtonStyle())
                     }
 
                     // Manage Job Categories Section
@@ -136,7 +146,7 @@ struct SettingsView: View {
             .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
         }
     }
-
+    
     // MARK: - Face ID / Passcode Authentication
     private func authenticateUser() {
         let context = LAContext()
