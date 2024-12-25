@@ -14,33 +14,47 @@ struct ManageJobCategoriesView: View {
 
     var body: some View {
         NavigationView {
-            List {
-                ForEach(categories, id: \.self) { category in
-                    DisclosureGroup {
-                        ForEach((category.jobs?.allObjects as? [JobOptionEntity]) ?? [], id: \.self) { job in
-                            JobRow(job: job)
+            ZStack {
+                List {
+                    ForEach(categories, id: \.self) { category in
+                        DisclosureGroup {
+                            ForEach((category.jobs?.allObjects as? [JobOptionEntity]) ?? [], id: \.self) { job in
+                                JobRow(job: job)
+                            }
+                            Button(action: {
+                                selectedCategory = category
+                                isAddingJob = true
+                            }) {
+                                Label("Add Job", systemImage: "plus.circle")
+                                    .foregroundColor(.accentColor)
+                            }
+                            .buttonStyle(.plain)
+                        } label: {
+                            Text(category.name ?? "Unknown Category")
+                                .font(.headline)
                         }
-                        Button(action: {
-                            selectedCategory = category
-                            isAddingJob = true
-                        }) {
-                            Label("Add Job", systemImage: "plus.circle")
-                                .foregroundColor(.accentColor)
-                        }
-                        .buttonStyle(.plain)
-                    } label: {
-                        Text(category.name ?? "Unknown Category")
-                            .font(.headline)
                     }
+                    .onDelete(perform: deleteCategory)
                 }
-                .onDelete(perform: deleteCategory)
-            }
-            .listStyle(InsetGroupedListStyle())
-            .navigationTitle("Manage Categories")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { isAddingCategory = true }) {
-                        Label("Add Category", systemImage: "plus")
+                .listStyle(InsetGroupedListStyle())
+                .navigationTitle("Manage Categories")
+
+                // Floating Add Category Button
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button(action: { isAddingCategory = true }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.blue)
+                                .clipShape(Circle())
+                                .shadow(radius: 4)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
                     }
                 }
             }

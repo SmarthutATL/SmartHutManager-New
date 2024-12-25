@@ -2,34 +2,37 @@ import SwiftUI
 
 struct TradesmenDetailView: View {
     var tradesman: Tradesmen?
-    
+    @State private var badgesShineOffset: CGFloat = -250
+    @State private var leaderboardShineOffset: CGFloat = 250
+
     var body: some View {
         ScrollView {
             VStack(spacing: 30) {
                 if let tradesman = tradesman {
-                    
                     // Profile Section
                     profileSection(tradesman: tradesman)
                         .padding(.horizontal)
-                    
+
                     // Badges Section
                     badgesSection(tradesman: tradesman)
                         .padding(.horizontal)
-                    
+
                     // Actions Section
                     actionsSection(tradesman: tradesman)
                         .padding(.horizontal)
-                    
                 } else {
                     noTradesmanPlaceholder()
                         .padding(.horizontal)
                 }
             }
             .padding(.vertical)
+            .onAppear {
+                startShineAnimation() // Start the shine animation when the view appears
+            }
         }
         .background(
             LinearGradient(
-                gradient: Gradient(colors: [Color.blue.opacity(0.2), Color.white.opacity(0.2)]),
+                gradient: Gradient(colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.3)]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -38,19 +41,19 @@ struct TradesmenDetailView: View {
         .navigationTitle("Technician Leaderboards")
         .navigationBarTitleDisplayMode(.inline)
     }
-    
+
     // MARK: - Profile Section
     private func profileSection(tradesman: Tradesmen) -> some View {
         VStack(spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(LinearGradient(gradient: Gradient(colors: [Color.blue, Color.purple]), startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 120, height: 120)
-                    .rotationEffect(Angle(degrees: 360))
-                    .animation(
-                        Animation.linear(duration: 20).repeatForever(autoreverses: false),
-                        value: tradesman.name
+                    .fill(
+                        AngularGradient(
+                            gradient: Gradient(colors: [.blue, .purple, .pink, .blue]),
+                            center: .center
+                        )
                     )
+                    .frame(width: 120, height: 120)
                     .overlay(
                         Text(String(tradesman.name?.prefix(1) ?? "?"))
                             .font(.largeTitle)
@@ -58,39 +61,41 @@ struct TradesmenDetailView: View {
                             .foregroundColor(.white)
                     )
             }
-            
+
             Text(tradesman.name ?? "Unknown Tradesman")
                 .font(.title2)
                 .fontWeight(.bold)
-            
+
             Text("Points: \(tradesman.points)")
                 .font(.headline)
                 .foregroundColor(.blue)
         }
         .padding()
         .background(
-            VisualEffectBlur(blurStyle: .systemMaterialLight)
+            VisualEffectBlur(blurStyle: .systemUltraThinMaterialLight)
                 .cornerRadius(20)
         )
         .shadow(radius: 10)
     }
-    
-    // Badges Section
+
+    // MARK: - Badges Section
     private func badgesSection(tradesman: Tradesmen) -> some View {
         VStack(spacing: 16) {
             Text("Badges")
                 .font(.headline)
                 .foregroundColor(.blue)
-            
+
             if let badges = tradesman.badges, !badges.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 16) {
                         ForEach(badges, id: \.self) { badge in
                             BadgeView(badge: badge)
+                                .frame(width: 120, height: 150)
                         }
                     }
                     .padding(.horizontal)
                 }
+                .frame(height: 180)
             } else {
                 Text("No badges yet")
                     .font(.body)
@@ -98,26 +103,98 @@ struct TradesmenDetailView: View {
             }
         }
     }
-    
+
     // MARK: - Actions Section
     private func actionsSection(tradesman: Tradesmen) -> some View {
         VStack(spacing: 16) {
-            CustomButton(
+            // View All Badges Button with Left-to-Right Shine Animation
+            shiningButton(
                 title: "View All Badges",
                 icon: "rosette",
                 gradientColors: [Color.blue, Color.purple],
-                destination: AnyView(BadgesView(tradesmanName: tradesman.name ?? "Tradesman"))
+                destination: AnyView(BadgesView(tradesmanName: tradesman.name ?? "Tradesman")),
+                shineOffset: $badgesShineOffset
             )
-            
-            CustomButton(
+
+            // View Leaderboard Button with Right-to-Left Shine Animation
+            shiningButton(
                 title: "View Leaderboard",
                 icon: "chart.bar.fill",
                 gradientColors: [Color.green, Color.blue],
-                destination: AnyView(LeaderboardView())
+                destination: AnyView(LeaderboardView()),
+                shineOffset: $leaderboardShineOffset
             )
         }
     }
-    
+
+    // MARK: - Shining Button Helper
+    private func shiningButton(
+        title: String,
+        icon: String,
+        gradientColors: [Color],
+        destination: AnyView,
+        shineOffset: Binding<CGFloat>
+    ) -> some View {
+        NavigationLink(destination: destination) {
+            ZStack {
+                // Button Background
+                HStack {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundColor(.white)
+                    Text(title)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(
+                    LinearGradient(
+                        gradient: Gradient(colors: gradientColors),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .cornerRadius(10)
+                .shadow(radius: 5)
+
+                // Light Shine Effect
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.clear, .white.opacity(0.5), .clear]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: 400, height: 60) // Adjust width to the button's width
+                    .offset(x: shineOffset.wrappedValue) // Use dynamic offset
+                    .mask(
+                        // Mask the shine to the button area
+                        HStack {
+                            Image(systemName: icon)
+                                .font(.title2)
+                                .foregroundColor(.white)
+                            Text(title)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: gradientColors),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(10)
+                    )
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
     // MARK: - No Tradesman Placeholder
     private func noTradesmanPlaceholder() -> some View {
         VStack(spacing: 20) {
@@ -126,11 +203,29 @@ struct TradesmenDetailView: View {
                 .scaledToFit()
                 .frame(width: 100, height: 100)
                 .foregroundColor(.gray)
-            
+
             Text("No Tradesman Available")
                 .font(.title)
                 .fontWeight(.bold)
                 .foregroundColor(.gray)
+        }
+    }
+    // MARK: - Continuous Shine Animation
+    private func startShineAnimation() {
+        // Animate the "View All Badges" shine (left to right and back)
+        withAnimation(
+            Animation.linear(duration: 4.0) // Increase duration for slower animation
+                .repeatForever(autoreverses: true)
+        ) {
+            badgesShineOffset = 150 // Adjust to match half the button width
+        }
+
+        // Animate the "View Leaderboard" shine (right to left and back)
+        withAnimation(
+            Animation.linear(duration: 4.0) // Increase duration for slower animation
+                .repeatForever(autoreverses: true)
+        ) {
+            leaderboardShineOffset = -150 // Adjust to match half the button width
         }
     }
 }
