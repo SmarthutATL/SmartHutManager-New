@@ -1,111 +1,112 @@
 import SwiftUI
+import CoreData
 
 struct MessagesView: View {
-    @State private var conversations: [Conversation] = [
-        Conversation(id: UUID(), name: "John Doe", lastMessage: "Can we schedule a meeting?", timestamp: "10:45 AM"),
-        Conversation(id: UUID(), name: "Jane Smith", lastMessage: "Invoice #123 has been approved.", timestamp: "9:30 AM")
-    ]
+    @Environment(\.managedObjectContext) private var viewContext
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \Conversation.timestamp, ascending: false)]
+    ) private var conversations: FetchedResults<Conversation>
     
+    @State private var isCreatingNewConversation = false
+
     var body: some View {
         NavigationView {
-            List(conversations) { conversation in
-                NavigationLink(destination: MessageDetailView(conversation: conversation)) {
-                    HStack {
-                        Circle()
-                            .fill(Color.blue)
-                            .frame(width: 40, height: 40)
-                            .overlay(Text(String(conversation.name.prefix(1)))
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            )
-                        VStack(alignment: .leading) {
-                            Text(conversation.name)
-                                .font(.headline)
-                            Text(conversation.lastMessage)
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                                .lineLimit(1)
-                        }
-                        Spacer()
-                        Text(conversation.timestamp)
-                            .font(.caption)
+            VStack {
+                if conversations.isEmpty {
+                    VStack {
+                        Text("No Messages")
+                            .font(.title2)
                             .foregroundColor(.gray)
+                        Text("Start a conversation with a technician or customer.")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 20)
                     }
-                    .padding(.vertical, 8)
+                } else {
+                    List {
+                        ForEach(conversations) { conversation in
+                            NavigationLink(destination: MessageDetailView(conversation: conversation)) {
+                                HStack {
+                                    Circle()
+                                        .fill(roleColor(for: conversation.participants ?? ""))
+                                        .frame(width: 40, height: 40)
+                                        .overlay(Text(initials(for: conversation.name ?? "Unknown"))
+                                            .font(.headline)
+                                            .foregroundColor(.white)
+                                        )
+                                    VStack(alignment: .leading) {
+                                        Text(conversation.name ?? "Unknown")
+                                            .font(.headline)
+                                        Text(conversation.lastMessage ?? "No messages yet")
+                                            .font(.subheadline)
+                                            .foregroundColor(.gray)
+                                            .lineLimit(1)
+                                    }
+                                    Spacer()
+                                    if let timestamp = conversation.timestamp {
+                                        Text(formatDate(timestamp))
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                            }
+                        }
+                        .onDelete(perform: deleteConversation)
+                    }
+                    .listStyle(InsetGroupedListStyle())
                 }
             }
             .navigationTitle("Messages")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        // Action to start a new conversation
-                    }) {
+                    Button(action: { isCreatingNewConversation = true }) {
                         Label("New", systemImage: "square.and.pencil")
                     }
                 }
             }
+            .sheet(isPresented: $isCreatingNewConversation) {
+                NewConversationView(onSave: {
+                    isCreatingNewConversation = false
+                })
+            }
         }
     }
-}
 
-struct MessageDetailView: View {
-    let conversation: Conversation
-    
-    @State private var messageText: String = ""
-    @State private var messages: [String] = ["Hello, how can I help you?", "Can we schedule a meeting?"]
-    
-    var body: some View {
-        VStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(messages, id: \.self) { message in
-                        HStack(alignment: .top) {
-                            if message.starts(with: "Hello") {
-                                Spacer()
-                                Text(message)
-                                    .padding()
-                                    .background(Color.blue.opacity(0.2))
-                                    .cornerRadius(10)
-                            } else {
-                                Text(message)
-                                    .padding()
-                                    .background(Color.gray.opacity(0.2))
-                                    .cornerRadius(10)
-                                Spacer()
-                            }
-                        }
-                    }
-                }
-                .padding()
-            }
-            
-            Divider()
-            
-            HStack {
-                TextField("Type a message", text: $messageText)
-                    .padding(12)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                Button(action: {
-                    guard !messageText.isEmpty else { return }
-                    messages.append(messageText)
-                    messageText = ""
-                }) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title)
-                        .foregroundColor(.blue)
-                }
-            }
-            .padding()
+    private func deleteConversation(at offsets: IndexSet) {
+        offsets.forEach { index in
+            let conversation = conversations[index]
+            viewContext.delete(conversation)
         }
-        .navigationTitle(conversation.name)
-        .navigationBarTitleDisplayMode(.inline)
+        do {
+            try viewContext.save()
+        } catch {
+            print("Failed to delete conversation: \(error)")
+        }
     }
-}
 
-struct Conversation: Identifiable {
-    let id: UUID
-    let name: String
-    let lastMessage: String
-    let timestamp: String
+    private func initials(for name: String?) -> String {
+        guard let name = name else { return "?" }
+        return name.split(separator: " ").compactMap { $0.first?.uppercased() }.joined()
+    }
+
+    private func roleColor(for participants: String) -> Color {
+        if participants.contains("admin") {
+            return .blue
+        } else if participants.contains("Technician") {
+            return .green
+        } else if participants.contains("Customer") {
+            return .orange
+        } else {
+            return .gray
+        }
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
 }

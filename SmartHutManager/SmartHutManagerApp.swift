@@ -3,9 +3,15 @@ import CoreData
 import FirebaseCore
 import FirebaseAuth
 import FirebaseAppCheck
+import FirebaseMessaging
+import FirebaseInAppMessaging
+import UserNotifications
+import FirebaseAnalytics
 
 @main
 struct SmartHutManagerApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate // Add this line
+
     let persistenceController = PersistenceController.shared
     private var iCloudSyncManager: ICloudSyncManager
 
@@ -16,11 +22,10 @@ struct SmartHutManagerApp: App {
     init() {
         print("Initializing SmartHutManagerApp")
 
-        // Initialize Firebase
+        // Configure Firebase
         FirebaseApp.configure()
         print("Firebase configured")
 
-        // Setup App Check
         #if DEBUG
             let providerFactory = AppCheckDebugProviderFactory()
             AppCheck.setAppCheckProviderFactory(providerFactory)
@@ -31,21 +36,21 @@ struct SmartHutManagerApp: App {
             print("Firebase App Check DeviceCheck provider set")
         #endif
 
-        // Register custom value transformers
         ValueTransformer.setValueTransformer(InvoiceItemTransformer(), forName: NSValueTransformerName("InvoiceItemTransformer"))
         ValueTransformer.setValueTransformer(MaterialItemTransformer(), forName: NSValueTransformerName("MaterialItemTransformer"))
         ValueTransformer.setValueTransformer(BadgesTransformer(), forName: NSValueTransformerName("BadgesTransformer"))
         print("Custom value transformers registered")
 
-        // Initialize iCloudSyncManager
         iCloudSyncManager = ICloudSyncManager(persistentContainer: persistenceController.container)
         print("iCloudSyncManager initialized")
 
-        // Seed job categories and job options
+        // Log a Firebase Analytics test event
+        Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
+        print("Logged App Open event to Firebase Analytics")
+
         seedData(context: persistenceController.container.viewContext)
         print("Data seeding complete")
 
-        // Sync tradesmen data from Firestore to Core Data
         TradesmenManager.shared.syncTradesmen(context: persistenceController.container.viewContext) { error in
             if let error = error {
                 print("Failed to sync tradesmen: \(error)")
@@ -54,7 +59,6 @@ struct SmartHutManagerApp: App {
             }
         }
 
-        // Retroactively update tradesmen for completed jobs
         retroactivelyUpdateTradesmen(context: persistenceController.container.viewContext)
     }
 
@@ -71,7 +75,6 @@ struct SmartHutManagerApp: App {
                 }
             }
             .onAppear {
-                // Hide the splash screen after 2 seconds
                 DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
                     withAnimation {
                         showSplash = false

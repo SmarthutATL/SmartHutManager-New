@@ -5,10 +5,9 @@ import CoreData
 class ICloudSyncManager {
     private let persistentContainer: NSPersistentCloudKitContainer
     private var isSyncInProgress = false
-    private var syncWorkItem: DispatchWorkItem?
+    private var syncDebounceTimer: Timer?
     private var lastSyncTime: Date?
     private let syncThrottleInterval: TimeInterval = 60  // Minimum 60 seconds between syncs
-    private let syncQueue = DispatchQueue(label: "com.smarthut.syncQueue", qos: .background)
 
     init(persistentContainer: NSPersistentCloudKitContainer) {
         self.persistentContainer = persistentContainer
@@ -30,19 +29,10 @@ class ICloudSyncManager {
             return
         }
 
-        syncWorkItem?.cancel()
-
-        let timeSinceLastSync = lastSyncTime.map { Date().timeIntervalSince($0) } ?? syncThrottleInterval
-        guard timeSinceLastSync >= syncThrottleInterval else {
-            print("Sync request ignored due to throttle interval.")
-            return
-        }
-
-        syncWorkItem = DispatchWorkItem { [weak self] in
+        syncDebounceTimer?.invalidate()
+        syncDebounceTimer = Timer.scheduledTimer(withTimeInterval: syncThrottleInterval, repeats: false) { [weak self] _ in
             self?.performSync()
         }
-
-        syncQueue.asyncAfter(deadline: .now() + syncThrottleInterval, execute: syncWorkItem!)
     }
 
     private func performSync() {
@@ -70,7 +60,7 @@ class ICloudSyncManager {
                 self.finishSync()
 
             } catch {
-                print("Error handling CloudKit changes: \(error.localizedDescription)")
+                self.logError(error, context: "performSync()")
                 self.finishSync()
             }
         }
@@ -79,5 +69,10 @@ class ICloudSyncManager {
     private func finishSync() {
         isSyncInProgress = false
         print("Sync finished successfully.")
+    }
+
+    private func logError(_ error: Error, context: String) {
+        let nsError = error as NSError
+        print("Error in \(context): \(nsError), \(nsError.userInfo)")
     }
 }
