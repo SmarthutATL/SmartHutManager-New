@@ -4,7 +4,7 @@ import FirebaseAuth
 struct SignInView: View {
     @State private var email = ""
     @State private var password = ""
-    @State private var currentQuoteIndex = 0
+    @State private var currentQuoteIndex = Int.random(in: 0..<5)
     @State private var isAnimating = false
 
     private let quotes = [
@@ -17,11 +17,14 @@ struct SignInView: View {
 
     @EnvironmentObject var authViewModel: AuthViewModel
 
+    // Timer publisher for changing quotes
+    private let quoteTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+
     var body: some View {
         ZStack {
             // Background
             LinearGradient(
-                gradient: Gradient(colors: [Color.blue, Color.purple]),
+                gradient: Gradient(colors: [Color.blue, Color.white]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -44,24 +47,40 @@ struct SignInView: View {
                     .foregroundColor(.white.opacity(0.9))
                     .padding(.bottom, 40)
 
-                // Input Fields
+                // Input Fields with Labels
                 VStack(spacing: 15) {
-                    TextField("Email", text: $email)
-                        .autocapitalization(.none)
-                        .foregroundColor(.black) // Ensure input text is black
-                        .padding()
-                        .background(Color.white.opacity(0.9))
-                        .cornerRadius(12)
-                        .padding(.horizontal, 30)
-                        .textFieldStyle(PlainTextFieldStyle()) // Explicitly apply a plain text style
+                    // Email Input
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Email")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.gray)
+                            .padding(.leading, 36)
 
-                    SecureField("Password", text: $password)
-                        .foregroundColor(.black) // Ensure input text is black
-                        .padding()
-                        .background(Color.white.opacity(0.9))
-                        .cornerRadius(12)
-                        .padding(.horizontal, 30)
-                        .textFieldStyle(PlainTextFieldStyle()) // Explicitly apply a plain text style
+                        TextField("", text: $email)
+                            .autocapitalization(.none)
+                            .foregroundColor(.black) // Ensure input text is black
+                            .padding()
+                            .background(Color.white.opacity(0.9))
+                            .cornerRadius(12)
+                            .padding(.horizontal, 30)
+                    }
+
+                    // Password Input
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Password")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.gray)
+                            .padding(.leading, 36)
+
+                        SecureField("", text: $password)
+                            .foregroundColor(.black) // Ensure input text is black
+                            .padding()
+                            .background(Color.white.opacity(0.9))
+                            .cornerRadius(12)
+                            .padding(.horizontal, 30)
+                    }
                 }
 
                 // Error Message
@@ -75,6 +94,7 @@ struct SignInView: View {
                 // Sign-In Button
                 Button(action: {
                     authViewModel.signIn(email: email, password: password)
+                    dismissKeyboard() // Dismiss keyboard when the button is tapped
                 }) {
                     HStack {
                         Image(systemName: "arrow.forward.circle.fill")
@@ -113,35 +133,29 @@ struct SignInView: View {
 
                         // Quote inside a card view
                         quoteCardView(quote: quotes[currentQuoteIndex])
-                            .id(currentQuoteIndex) // Ensure proper transition between quotes
+                            .onReceive(quoteTimer) { _ in
+                                withAnimation(.easeInOut(duration: 0.5)) {
+                                    currentQuoteIndex = Int.random(in: 0..<quotes.count)
+                                }
+                            }
 
                         // Rotating Wrench Icon
                         Image(systemName: "wrench.and.screwdriver.fill")
                             .font(.system(size: 40))
                             .foregroundColor(.white)
                             .rotationEffect(isAnimating ? .degrees(360) : .degrees(0))
-                            .onChange(of: isAnimating) {
-                                withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
-                                    isAnimating = true
-                                }
-                            }
                             .onAppear {
                                 isAnimating = true
                             }
                     }
                 }
-                .onAppear(perform: startQuoteAnimation)
             }
         }
     }
 
-    // Updates the quote every 3 seconds
-    private func startQuoteAnimation() {
-        Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in
-            withAnimation(.easeInOut(duration: 0.5)) {
-                currentQuoteIndex = (currentQuoteIndex + 1) % quotes.count
-            }
-        }
+    // MARK: - Dismiss Keyboard
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 
     // MARK: - Card View for Quote
