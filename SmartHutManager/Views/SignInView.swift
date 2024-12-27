@@ -2,11 +2,12 @@ import SwiftUI
 import FirebaseAuth
 
 struct SignInView: View {
-    @State private var email = ""
-    @State private var password = ""
+    @State private var email = UserDefaults.standard.string(forKey: "savedEmail") ?? ""
+    @State private var password = UserDefaults.standard.string(forKey: "savedPassword") ?? ""
     @State private var showPassword = false
     @State private var currentQuoteIndex = Int.random(in: 0..<5)
     @State private var isAnimating = false
+    @State private var rememberMe = UserDefaults.standard.bool(forKey: "rememberMe")
 
     private let quotes = [
         "Measuring twice, cutting once... Logging you in!",
@@ -18,7 +19,6 @@ struct SignInView: View {
 
     @EnvironmentObject var authViewModel: AuthViewModel
 
-    // Timer publisher for changing quotes
     private let quoteTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -61,12 +61,12 @@ struct SignInView: View {
                         TextField("", text: $email)
                             .autocapitalization(.none)
                             .keyboardType(.emailAddress)
-                            .foregroundColor(.black) // Ensure input text is black
+                            .foregroundColor(.black)
                             .padding()
                             .background(Color.white.opacity(0.9))
                             .cornerRadius(12)
                             .padding(.horizontal, 30)
-                            .textContentType(.username) // Autofill for email
+                            .textContentType(.username)
                     }
 
                     // Password Input
@@ -85,7 +85,7 @@ struct SignInView: View {
                                     .background(Color.white.opacity(0.9))
                                     .cornerRadius(12)
                                     .padding(.horizontal, 30)
-                                    .textContentType(.password) // Enable password autofill
+                                    .textContentType(.password)
                             } else {
                                 SecureField("", text: $password)
                                     .foregroundColor(.black)
@@ -93,7 +93,7 @@ struct SignInView: View {
                                     .background(Color.white.opacity(0.9))
                                     .cornerRadius(12)
                                     .padding(.horizontal, 30)
-                                    .textContentType(.password) // Enable password autofill
+                                    .textContentType(.password)
                             }
 
                             // Show/Hide Password Button
@@ -107,6 +107,14 @@ struct SignInView: View {
                             .padding(.leading, UIScreen.main.bounds.width - 100)
                         }
                     }
+
+                    // Remember Me Toggle
+                    Toggle(isOn: $rememberMe) {
+                        Text("Remember Me")
+                            .foregroundColor(.gray)
+                            .font(.caption)
+                    }
+                    .padding(.horizontal, 30)
                 }
 
                 // Error Message
@@ -119,8 +127,13 @@ struct SignInView: View {
 
                 // Sign-In Button
                 Button(action: {
+                    if rememberMe {
+                        saveCredentials(email: email, password: password)
+                    } else {
+                        clearCredentials()
+                    }
                     authViewModel.signIn(email: email, password: password)
-                    dismissKeyboard() // Dismiss keyboard when the button is tapped
+                    dismissKeyboard()
                 }) {
                     HStack {
                         Image(systemName: "arrow.forward.circle.fill")
@@ -177,6 +190,20 @@ struct SignInView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Save Credentials
+    private func saveCredentials(email: String, password: String) {
+        UserDefaults.standard.set(email, forKey: "savedEmail")
+        UserDefaults.standard.set(password, forKey: "savedPassword")
+        UserDefaults.standard.set(true, forKey: "rememberMe")
+    }
+
+    // MARK: - Clear Credentials
+    private func clearCredentials() {
+        UserDefaults.standard.removeObject(forKey: "savedEmail")
+        UserDefaults.standard.removeObject(forKey: "savedPassword")
+        UserDefaults.standard.set(false, forKey: "rememberMe")
     }
 
     // MARK: - Dismiss Keyboard

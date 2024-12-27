@@ -36,7 +36,7 @@ struct TradesmenDetailView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .ignoresSafeArea()
+            .edgesIgnoringSafeArea([.top]) // Apply only to specific edges
         )
         .navigationTitle("Technician Leaderboards")
         .navigationBarTitleDisplayMode(.inline)
