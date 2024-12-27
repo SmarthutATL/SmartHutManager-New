@@ -19,11 +19,12 @@ struct SettingsView: View {
     @State private var selectedPlan: String = "Basic"
     @State private var isShowingImagePicker = false
     @State private var isShowingTradesmenList = false
+    @State private var isShowingInvoicesList = false
     @State private var isShowingSubscriptionPlanView = false
+    @State private var authenticationFailed = false
+
     @EnvironmentObject var authViewModel: AuthViewModel
     @Environment(\.managedObjectContext) private var viewContext
-
-    @State private var authenticationFailed = false
 
     var body: some View {
         NavigationView {
@@ -73,18 +74,27 @@ struct SettingsView: View {
                             }
                     }
 
-                    // Invoices Section
+                    // Invoices Section (Face ID Authentication)
                     cardView {
-                        NavigationLink(destination: InvoiceListView(viewContext: viewContext)) {
-                            SettingsItem(icon: "doc.plaintext", title: "Manage Invoices", color: .blue)
-                                .foregroundColor(.white)
+                        Button(action: {
+                            authenticateUser(for: .manageInvoices)
+                        }) {
+                            HStack {
+                                SettingsItem(icon: "doc.plaintext", title: "Manage Invoices", color: .blue)
+                                    .foregroundColor(.white)
+                                Spacer()
+                            }
                         }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    .sheet(isPresented: $isShowingInvoicesList) {
+                        InvoiceListView(viewContext: viewContext) // Show invoices after Face ID authentication
                     }
 
                     // Technician Management Section (Face ID Authentication)
                     cardView {
                         Button(action: {
-                            authenticateUser()
+                            authenticateUser(for: .manageTechnicians)
                         }) {
                             HStack {
                                 SettingsItem(icon: "person.2.fill", title: "Manage Technicians", color: .blue)
@@ -95,10 +105,9 @@ struct SettingsView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     .sheet(isPresented: $isShowingTradesmenList) {
-                        TradesmenListView() // Show the list of tradesmen after Face ID authentication
+                        TradesmenListView() // Show tradesmen list after Face ID authentication
                     }
-                    
-                    
+
                     // Technician Performance Section
                     cardView {
                         NavigationLink(destination: TechnicianPerformanceView()) {
@@ -141,9 +150,6 @@ struct SettingsView: View {
                 .sheet(isPresented: $isShowingImagePicker) {
                     ImagePicker(selectedImage: $selectedLogo)
                 }
-                .sheet(isPresented: $isShowingTradesmenList) {
-                    TradesmenListView()
-                }
                 .sheet(isPresented: $isShowingSubscriptionPlanView) {
                     SubscriptionPlanView(
                         selectedPlan: $selectedPlan,
@@ -159,25 +165,34 @@ struct SettingsView: View {
     }
 
     // MARK: - Face ID / Passcode Authentication
-    private func authenticateUser() {
+    enum AuthenticationPurpose {
+        case manageTechnicians
+        case manageInvoices
+    }
+
+    private func authenticateUser(for purpose: AuthenticationPurpose) {
         let context = LAContext()
         var error: NSError?
 
         // Check if Face ID or Passcode is available
         if context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) {
-            let reason = "Authenticate to manage technicians"
+            let reason = "Authenticate to \(purpose == .manageTechnicians ? "manage technicians" : "manage invoices")"
 
             context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, authenticationError in
                 DispatchQueue.main.async {
                     if success {
-                        isShowingTradesmenList = true
+                        switch purpose {
+                        case .manageTechnicians:
+                            isShowingTradesmenList = true
+                        case .manageInvoices:
+                            isShowingInvoicesList = true
+                        }
                     } else {
                         authenticationFailed = true
                     }
                 }
             }
         } else {
-            // Device does not support Face ID or Passcode
             print("Face ID / Passcode not available.")
         }
     }

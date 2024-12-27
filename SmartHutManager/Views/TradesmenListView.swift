@@ -1,8 +1,10 @@
 import SwiftUI
 import CoreData
+import FirebaseFirestore
 
 struct TradesmenListView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    private let db = Firestore.firestore()
 
     @FetchRequest(
         entity: Tradesmen.entity(),
@@ -10,19 +12,23 @@ struct TradesmenListView: View {
     ) var tradesmen: FetchedResults<Tradesmen>
 
     @State private var isShowingCreateTradesman = false
-    @State private var isShowingEditTradesman = false
-    @State private var selectedTradesman: Tradesmen?
+    @State private var selectedEditTradesman: Tradesmen?
+    @State private var selectedDetailTradesman: Tradesmen?
 
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
                     ForEach(tradesmen) { tradesman in
-                        TradesmanCardView(tradesman: tradesman, onEdit: {
-                            // Set selectedTradesman and present the sheet synchronously
-                            self.selectedTradesman = tradesman
-                            self.isShowingEditTradesman = true
-                        })
+                        TradesmanCardView(
+                            tradesman: tradesman,
+                            onEdit: {
+                                self.selectedEditTradesman = tradesman
+                            },
+                            onDetails: {
+                                self.selectedDetailTradesman = tradesman
+                            }
+                        )
                         .padding(.horizontal)
                     }
                 }
@@ -43,10 +49,17 @@ struct TradesmenListView: View {
                 CreateTradesmanView()
             }
             // Edit Tradesman Sheet
-            .sheet(item: $selectedTradesman) { tradesman in
+            .sheet(item: $selectedEditTradesman) { tradesman in
                 EditTradesmanView(tradesman: tradesman)
                     .onDisappear {
-                        selectedTradesman = nil // Reset to avoid conflicts
+                        selectedEditTradesman = nil // Reset to avoid conflicts
+                    }
+            }
+            // Technician Detail Sheet
+            .sheet(item: $selectedDetailTradesman) { tradesman in
+                TechDetailView(tradesman: tradesman)
+                    .onDisappear {
+                        selectedDetailTradesman = nil
                     }
             }
             .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
@@ -54,7 +67,22 @@ struct TradesmenListView: View {
     }
 
     private func deleteTradesman(at offsets: IndexSet) {
-        offsets.map { tradesmen[$0] }.forEach(viewContext.delete)
+        offsets.map { tradesmen[$0] }.forEach { tradesman in
+            // Delete from CoreData
+            viewContext.delete(tradesman)
+
+            // Delete from Firestore
+            let tradesmanId = tradesman.objectID.uriRepresentation().absoluteString
+            db.collection("tradesmen").document(tradesmanId).delete { error in
+                if let error = error {
+                    print("Failed to delete tradesman from Firestore: \(error.localizedDescription)")
+                } else {
+                    print("Tradesman successfully deleted from Firestore.")
+                }
+            }
+        }
+
+        // Save CoreData changes
         do {
             try viewContext.save()
         } catch {
@@ -67,13 +95,21 @@ struct TradesmenListView: View {
 struct TradesmanCardView: View {
     let tradesman: Tradesmen
     let onEdit: () -> Void
+    let onDetails: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(tradesman.name ?? "Unknown")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(tradesman.name ?? "Unknown")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    if let jobTitle = tradesman.jobTitle, !jobTitle.isEmpty {
+                        Text(jobTitle)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 Spacer()
                 Button(action: {
                     onEdit()
@@ -83,53 +119,41 @@ struct TradesmanCardView: View {
                         .foregroundColor(.blue)
                 }
             }
-            if let jobTitle = tradesman.jobTitle, !jobTitle.isEmpty {
-                Text(jobTitle)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            if let phone = tradesman.phoneNumber, !phone.isEmpty {
-                Button(action: {
-                    if let url = URL(string: "tel://\(phone)"), UIApplication.shared.canOpenURL(url) {
-                        UIApplication.shared.open(url)
-                    }
-                }) {
-                    HStack {
+
+            HStack(spacing: 20) {
+                if let phone = tradesman.phoneNumber, !phone.isEmpty {
+                    Button(action: {
+                        if let url = URL(string: "tel://\(phone)"), UIApplication.shared.canOpenURL(url) {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
                         Image(systemName: "phone.fill")
                             .foregroundColor(.green)
-                        Text(phone)
-                            .foregroundColor(.blue)
-                            .underline()
+                            .font(.title3)
                     }
                 }
-            }
-            if let email = tradesman.email, !email.isEmpty {
-                Button(action: {
-                    if let url = URL(string: "mailto:\(email)"), UIApplication.shared.canOpenURL(url) {
-                        UIApplication.shared.open(url)
-                    }
-                }) {
-                    HStack {
+
+                if let email = tradesman.email, !email.isEmpty {
+                    Button(action: {
+                        if let url = URL(string: "mailto:\(email)"), UIApplication.shared.canOpenURL(url) {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
                         Image(systemName: "envelope.fill")
                             .foregroundColor(.orange)
-                        Text(email)
-                            .foregroundColor(.blue)
-                            .underline()
+                            .font(.title3)
                     }
                 }
-            }
-            if let address = tradesman.address, !address.isEmpty {
-                Button(action: {
-                    if let url = URL(string: "http://maps.apple.com/?q=\(address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"), UIApplication.shared.canOpenURL(url) {
-                        UIApplication.shared.open(url)
-                    }
-                }) {
-                    HStack {
+
+                if let address = tradesman.address, !address.isEmpty {
+                    Button(action: {
+                        if let url = URL(string: "http://maps.apple.com/?q=\(address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"), UIApplication.shared.canOpenURL(url) {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
                         Image(systemName: "map.fill")
                             .foregroundColor(.red)
-                        Text(address)
-                            .foregroundColor(.blue)
-                            .underline()
+                            .font(.title3)
                     }
                 }
             }
@@ -138,5 +162,8 @@ struct TradesmanCardView: View {
         .background(Color(.secondarySystemBackground))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .onTapGesture {
+            onDetails()
+        }
     }
 }
