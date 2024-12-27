@@ -94,7 +94,11 @@ struct SettingsView: View {
                         }
                         .buttonStyle(PlainButtonStyle())
                     }
-
+                    .sheet(isPresented: $isShowingTradesmenList) {
+                        TradesmenListView() // Show the list of tradesmen after Face ID authentication
+                    }
+                    
+                    
                     // Technician Performance Section
                     cardView {
                         NavigationLink(destination: TechnicianPerformanceView()) {

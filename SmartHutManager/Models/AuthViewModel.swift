@@ -1,5 +1,6 @@
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseFunctions
 import SwiftUI
 
 class AuthViewModel: ObservableObject {
@@ -120,6 +121,36 @@ class AuthViewModel: ObservableObject {
         }
     }
 
+    // Function to assign role to a user via Firebase Functions
+    func assignRoleToUser(email: String, role: String, completion: @escaping (Bool, String?) -> Void) {
+        let functions = Functions.functions()
+        functions.httpsCallable("assignRole").call(["email": email, "role": role]) { result, error in
+            if let error = error as NSError? {
+                print("Error assigning role: \(error.localizedDescription)")
+                completion(false, "Error assigning role: \(error.localizedDescription)")
+            } else if let resultData = result?.data as? [String: Any] {
+                print("Role assigned successfully: \(resultData["message"] ?? "No message")")
+                completion(true, resultData["message"] as? String)
+            }
+        }
+    }
+
+    // Function to save user details to Firestore
+    func saveUserToFirestore(uid: String, email: String, role: String) {
+        db.collection("users").document(uid).setData([
+            "email": email,
+            "role": role,
+            "createdAt": Timestamp(date: Date())
+        ]) { error in
+            if let error = error {
+                print("Error saving user to Firestore: \(error.localizedDescription)")
+            } else {
+                print("User successfully saved to Firestore.")
+            }
+        }
+    }
+
+    // Sign-out function
     func signOut() {
         print("Attempting to sign out...")
         do {

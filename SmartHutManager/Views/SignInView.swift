@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseAuth
+import FirebaseFunctions
 
 struct SignInView: View {
     @State private var email = UserDefaults.standard.string(forKey: "savedEmail") ?? ""
@@ -133,6 +134,7 @@ struct SignInView: View {
                         clearCredentials()
                     }
                     authViewModel.signIn(email: email, password: password)
+                    assignRole(email: email, role: "user")
                     dismissKeyboard()
                 }) {
                     HStack {
@@ -225,5 +227,17 @@ struct SignInView: View {
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
         .padding(.horizontal, 40)
+    }
+
+    // MARK: - Assign Role Function
+    private func assignRole(email: String, role: String) {
+        let functions = Functions.functions()
+        functions.httpsCallable("assignRole").call(["email": email, "role": role]) { result, error in
+            if let error = error as NSError? {
+                print("Error assigning role: \(error.localizedDescription)")
+            } else if let data = result?.data as? [String: Any] {
+                print("Role assigned successfully: \(data["message"] ?? "No message")")
+            }
+        }
     }
 }
