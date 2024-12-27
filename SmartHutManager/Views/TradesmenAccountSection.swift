@@ -1,11 +1,14 @@
 import SwiftUI
 import LocalAuthentication
+import FirebaseFirestore
 
 struct TradesmanAccountSection: View {
     let tradesman: Tradesmen?
 
     @State private var isPersonalInfoVisible: Bool = false
     @State private var authenticationFailed: Bool = false
+    @State private var companyID: String? = nil
+    @State private var isLoading = true
 
     var body: some View {
         if let tradesman = tradesman {
@@ -30,6 +33,27 @@ struct TradesmanAccountSection: View {
                     Spacer()
                 }
                 .padding(.top, 16) // Add padding from top of the screen
+
+                Divider()
+
+                // Display the Company ID
+                if isLoading {
+                    ProgressView()
+                } else if let companyID = companyID {
+                    HStack {
+                        Text("Company ID:")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Text(companyID)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                } else {
+                    Text("Company ID not available.")
+                        .foregroundColor(.red)
+                        .padding()
+                }
 
                 Divider()
 
@@ -69,11 +93,45 @@ struct TradesmanAccountSection: View {
                 Spacer() // Pushes content to the top
             }
             .padding(.horizontal)
+            .onAppear {
+                fetchCompanyID()
+            }
         } else {
             Text("No tradesman available")
                 .foregroundColor(.gray)
                 .font(.system(size: 16))
                 .padding()
+        }
+    }
+    // MARK: - Fetch Company ID
+    private func fetchCompanyID() {
+        guard let email = tradesman?.email else {
+            print("Tradesman email is nil.")
+            return
+        }
+
+        let db = Firestore.firestore()
+        isLoading = true
+
+        db.collection("users").whereField("email", isEqualTo: email).getDocuments { snapshot, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("Error fetching company ID: \(error.localizedDescription)")
+                    self.companyID = nil
+                } else if let document = snapshot?.documents.first {
+                    if let fetchedCompanyID = document.data()["companyID"] as? String {
+                        self.companyID = fetchedCompanyID
+                        print("Company ID fetched successfully: \(fetchedCompanyID)")
+                    } else {
+                        print("Company ID field is missing in the document.")
+                        self.companyID = nil
+                    }
+                } else {
+                    print("No matching user found for email: \(email)")
+                    self.companyID = nil
+                }
+                self.isLoading = false
+            }
         }
     }
 

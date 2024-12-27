@@ -10,6 +10,9 @@ struct SignInView: View {
     @State private var isAnimating = false
     @State private var rememberMe = UserDefaults.standard.bool(forKey: "rememberMe")
 
+    @State private var isShowingAdminRegistration = false
+    @State private var isShowingTechnicianRegistration = false
+
     private let quotes = [
         "Measuring twice, cutting once... Logging you in!",
         "Your business, your empire. Let’s load it up!",
@@ -134,7 +137,6 @@ struct SignInView: View {
                         clearCredentials()
                     }
                     authViewModel.signIn(email: email, password: password)
-                    assignRole(email: email, role: "user")
                     dismissKeyboard()
                 }) {
                     HStack {
@@ -158,6 +160,32 @@ struct SignInView: View {
                 .padding(.top, 20)
 
                 Spacer()
+
+                // Register Buttons
+                VStack {
+                    Button(action: {
+                        isShowingAdminRegistration = true
+                    }) {
+                        Text("Register as Admin")
+                            .underline()
+                            .foregroundColor(.blue)
+                    }
+                    .sheet(isPresented: $isShowingAdminRegistration) {
+                        RegisterAdminView()
+                    }
+
+                    Button(action: {
+                        isShowingTechnicianRegistration = true
+                    }) {
+                        Text("Register as Technician")
+                            .underline()
+                            .foregroundColor(.blue)
+                    }
+                    .sheet(isPresented: $isShowingTechnicianRegistration) {
+                        RegisterTechnicianView()
+                    }
+                }
+                .padding(.bottom)
             }
             .padding()
 
@@ -228,7 +256,7 @@ struct SignInView: View {
         .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
         .padding(.horizontal, 40)
     }
-
+}
     // MARK: - Assign Role Function
     private func assignRole(email: String, role: String) {
         let functions = Functions.functions()
@@ -240,4 +268,4 @@ struct SignInView: View {
             }
         }
     }
-}
+
