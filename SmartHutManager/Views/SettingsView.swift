@@ -4,7 +4,6 @@ import CoreData
 import FirebaseAuth
 import FirebaseFirestore
 
-
 struct SettingsView: View {
     @FetchRequest(
         entity: Tradesmen.entity(),
@@ -96,6 +95,14 @@ struct SettingsView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
 
+                    // Technician Performance Section
+                    cardView {
+                        NavigationLink(destination: TechnicianPerformanceView()) {
+                            SettingsItem(icon: "chart.bar.fill", title: "Technician Performance", color: .orange)
+                                .foregroundColor(.white)
+                        }
+                    }
+
                     // Manage Job Categories Section
                     cardView {
                         NavigationLink(destination: ManageJobCategoriesView()) {
@@ -146,7 +153,7 @@ struct SettingsView: View {
             .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
         }
     }
-    
+
     // MARK: - Face ID / Passcode Authentication
     private func authenticateUser() {
         let context = LAContext()
