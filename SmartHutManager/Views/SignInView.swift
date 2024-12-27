@@ -4,6 +4,7 @@ import FirebaseAuth
 struct SignInView: View {
     @State private var email = ""
     @State private var password = ""
+    @State private var showPassword = false
     @State private var currentQuoteIndex = Int.random(in: 0..<5)
     @State private var isAnimating = false
 
@@ -59,11 +60,13 @@ struct SignInView: View {
 
                         TextField("", text: $email)
                             .autocapitalization(.none)
+                            .keyboardType(.emailAddress)
                             .foregroundColor(.black) // Ensure input text is black
                             .padding()
                             .background(Color.white.opacity(0.9))
                             .cornerRadius(12)
                             .padding(.horizontal, 30)
+                            .textContentType(.username) // Autofill for email
                     }
 
                     // Password Input
@@ -74,12 +77,35 @@ struct SignInView: View {
                             .foregroundColor(.gray)
                             .padding(.leading, 36)
 
-                        SecureField("", text: $password)
-                            .foregroundColor(.black) // Ensure input text is black
-                            .padding()
-                            .background(Color.white.opacity(0.9))
-                            .cornerRadius(12)
-                            .padding(.horizontal, 30)
+                        ZStack {
+                            if showPassword {
+                                TextField("", text: $password)
+                                    .foregroundColor(.black)
+                                    .padding()
+                                    .background(Color.white.opacity(0.9))
+                                    .cornerRadius(12)
+                                    .padding(.horizontal, 30)
+                                    .textContentType(.password) // Enable password autofill
+                            } else {
+                                SecureField("", text: $password)
+                                    .foregroundColor(.black)
+                                    .padding()
+                                    .background(Color.white.opacity(0.9))
+                                    .cornerRadius(12)
+                                    .padding(.horizontal, 30)
+                                    .textContentType(.password) // Enable password autofill
+                            }
+
+                            // Show/Hide Password Button
+                            Button(action: {
+                                showPassword.toggle()
+                            }) {
+                                Image(systemName: showPassword ? "eye.slash" : "eye")
+                                    .foregroundColor(.gray)
+                                    .padding(.trailing, 40)
+                            }
+                            .padding(.leading, UIScreen.main.bounds.width - 100)
+                        }
                     }
                 }
 

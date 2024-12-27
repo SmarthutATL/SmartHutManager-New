@@ -53,5 +53,7 @@ struct MainTabView: View {
                     }
             }
         }
+        .tint(Color.blue) // Highlight the selected tab in blue
+        .accentColor(Color.gray) // Non-selected tabs are dark grey
     }
 }

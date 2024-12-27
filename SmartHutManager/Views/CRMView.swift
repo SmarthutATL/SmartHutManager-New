@@ -52,6 +52,7 @@ struct CRMView: View {
                     .listStyle(InsetGroupedListStyle())
                 }
                 .navigationTitle("Customers")
+                .padding(.top, -10) // Reduce the top padding slightly
                 
                 // Floating Add Customer Button
                 VStack {

@@ -32,11 +32,11 @@ struct TradesmenDetailView: View {
         }
         .background(
             LinearGradient(
-                gradient: Gradient(colors: [Color.blue.opacity(0.3), Color.purple.opacity(0.3)]),
+                gradient: Gradient(colors: [Color.blue, Color.white]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .edgesIgnoringSafeArea(.all)
+            .ignoresSafeArea()
         )
         .navigationTitle("Technician Leaderboards")
         .navigationBarTitleDisplayMode(.inline)
@@ -111,7 +111,7 @@ struct TradesmenDetailView: View {
             shiningButton(
                 title: "View All Badges",
                 icon: "rosette",
-                gradientColors: [Color.blue, Color.purple],
+                gradientColors: [Color.purple, Color.blue], // Updated gradient
                 destination: AnyView(BadgesView(tradesmanName: tradesman.name ?? "Tradesman")),
                 shineOffset: $badgesShineOffset
             )
@@ -120,7 +120,7 @@ struct TradesmenDetailView: View {
             shiningButton(
                 title: "View Leaderboard",
                 icon: "chart.bar.fill",
-                gradientColors: [Color.green, Color.blue],
+                gradientColors: [Color.purple, Color.blue], // Updated gradient
                 destination: AnyView(LeaderboardView()),
                 shineOffset: $leaderboardShineOffset
             )
@@ -210,6 +210,7 @@ struct TradesmenDetailView: View {
                 .foregroundColor(.gray)
         }
     }
+
     // MARK: - Continuous Shine Animation
     private func startShineAnimation() {
         // Animate the "View All Badges" shine (left to right and back)
