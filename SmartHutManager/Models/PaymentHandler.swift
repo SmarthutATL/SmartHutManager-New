@@ -1,7 +1,7 @@
 import Foundation
 import PassKit
 
-
+// MARK: - Double Extension for Currency Rounding
 extension Double {
     /// Rounds the double value to a valid currency format with two decimal places
     func roundedToCurrency() -> NSDecimalNumber {
@@ -10,10 +10,12 @@ extension Double {
     }
 }
 
+// MARK: - PaymentHandler Class
 class PaymentHandler: NSObject, PKPaymentAuthorizationControllerDelegate {
     private var onSuccess: (() -> Void)?
     private var onFailure: ((String) -> Void)?
 
+    /// Initiates an Apple Pay payment
     func startPayment(
         for amount: Double,
         withMerchantIdentifier merchantIdentifier: String,
@@ -24,13 +26,15 @@ class PaymentHandler: NSObject, PKPaymentAuthorizationControllerDelegate {
         self.onSuccess = onSuccess
         self.onFailure = onFailure
 
+        // Create a payment request
         let paymentRequest = PKPaymentRequest()
         paymentRequest.merchantIdentifier = merchantIdentifier
-        paymentRequest.supportedNetworks = [.visa, .masterCard, .amex]
+        paymentRequest.supportedNetworks = [.visa, .masterCard, .amex, .discover]
         paymentRequest.merchantCapabilities = .threeDSecure
         paymentRequest.countryCode = "US"
         paymentRequest.currencyCode = "USD"
 
+        // Validate the customer name
         let validCustomerName = customerName.isEmpty ? "Customer" : customerName
         paymentRequest.paymentSummaryItems = [
             PKPaymentSummaryItem(
@@ -39,9 +43,11 @@ class PaymentHandler: NSObject, PKPaymentAuthorizationControllerDelegate {
             )
         ]
 
+        // Create the payment controller
         let paymentController = PKPaymentAuthorizationController(paymentRequest: paymentRequest)
         paymentController.delegate = self
 
+        // Present the payment interface
         paymentController.present { presented in
             if !presented {
                 onFailure("Unable to present Apple Pay.")
@@ -49,21 +55,24 @@ class PaymentHandler: NSObject, PKPaymentAuthorizationControllerDelegate {
         }
     }
 
-    // MARK: - PKPaymentAuthorizationControllerDelegate
+    // MARK: - PKPaymentAuthorizationControllerDelegate Methods
 
+    /// Called when the payment authorization finishes
     func paymentAuthorizationControllerDidFinish(_ controller: PKPaymentAuthorizationController) {
         controller.dismiss {
+            // Notify failure if no success was triggered
             self.onFailure?("Payment was canceled or failed.")
         }
     }
 
+    /// Called when the payment is authorized
     func paymentAuthorizationController(
         _ controller: PKPaymentAuthorizationController,
         didAuthorizePayment payment: PKPayment,
         handler completion: @escaping (PKPaymentAuthorizationResult) -> Void
     ) {
-        // Simulate payment success
-        let paymentSuccess = true // Replace with your payment validation logic
+        // Simulate payment success (replace with your server-side payment validation logic)
+        let paymentSuccess = true
 
         if paymentSuccess {
             completion(PKPaymentAuthorizationResult(status: .success, errors: nil))

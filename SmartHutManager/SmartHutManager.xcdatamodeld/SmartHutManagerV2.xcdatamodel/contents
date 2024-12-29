@@ -50,6 +50,10 @@
         <attribute name="timestamp" optional="YES" attributeType="Date"/>
         <relationship name="conversation" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Conversation" inverseName="messages" inverseEntity="Conversation"/>
     </entity>
+    <entity name="PaymentQRCode" representedClassName="PaymentQRCode" syncable="YES">
+        <attribute name="qrCode" optional="YES" attributeType="Binary"/>
+        <attribute name="type" optional="YES" attributeType="String"/>
+    </entity>
     <entity name="Task" representedClassName=".Task" syncable="YES" codeGenerationType="class">
         <attribute name="isComplete" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="name" optional="YES" attributeType="String"/>

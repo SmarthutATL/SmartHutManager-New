@@ -1,16 +1,9 @@
 import Foundation
-import PassKit // For Apple Pay
-import MessageUI // For sending email
+import PassKit
+import MessageUI
 import UIKit
 
 class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, PKPaymentAuthorizationViewControllerDelegate {
-    
-    // Payment methods enum
-    enum PaymentMethod {
-        case applePay
-        case paypal
-        case zelle
-    }
     
     private var onSuccess: (() -> Void)?
     private var onError: ((String) -> Void)?
@@ -28,6 +21,12 @@ class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, PKPa
             initiateApplePay(for: customer, amount: amount, from: viewController)
         case .paypal, .zelle:
             sendPaymentLink(for: customer, method: paymentMethod, amount: amount, from: viewController)
+        case .cash:
+            // Handle cash payment case
+            showAlert(title: "Cash Payment",
+                      message: "Please collect $\(String(format: "%.2f", amount)) in cash from the customer.",
+                      on: viewController)
+            onSuccess()
         }
     }
 
@@ -59,8 +58,6 @@ class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, PKPa
     private func sendPaymentLink(for customer: Customer, method: PaymentMethod, amount: Double, from viewController: UIViewController) {
         let paymentService = (method == .paypal) ? "PayPal" : "Zelle"
         let customerName = customer.name ?? "Customer"
-        let customerEmail = customer.email ?? ""
-
         let messageBody = """
         Hi \(customerName),
         
@@ -68,7 +65,7 @@ class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, PKPa
         
         Please use the following \(paymentService) link to pay:
         
-        \(generatePaymentLink(for: customer, method: method, amount: amount))
+        \(generatePaymentLink(for: method, amount: amount))
         
         Thank you!
         """
@@ -76,7 +73,7 @@ class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, PKPa
         if MFMailComposeViewController.canSendMail() {
             let mailComposer = MFMailComposeViewController()
             mailComposer.mailComposeDelegate = self
-            mailComposer.setToRecipients([customerEmail])
+            mailComposer.setToRecipients([customer.email ?? ""])
             mailComposer.setSubject("\(paymentService) Payment Request")
             mailComposer.setMessageBody(messageBody, isHTML: false)
             
@@ -91,12 +88,12 @@ class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, PKPa
     }
 
     // MARK: - Generate Payment Link
-    private func generatePaymentLink(for customer: Customer, method: PaymentMethod, amount: Double) -> String {
+    func generatePaymentLink(for method: PaymentMethod, amount: Double) -> String {
         switch method {
         case .paypal:
             return "https://www.paypal.me/yourbusiness/\(String(format: "%.2f", amount))"
         case .zelle:
-            return "https://zellepay.com/pay/your-email-or-phone"
+            return "https://zellepay.com/pay/smarthutatl@gmail.com"
         default:
             return ""
         }

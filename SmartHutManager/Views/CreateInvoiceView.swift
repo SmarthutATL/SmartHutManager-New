@@ -21,14 +21,6 @@ struct CreateInvoiceView: View {
         sortDescriptors: [NSSortDescriptor(keyPath: \WorkOrder.date, ascending: false)]
     ) var workOrders: FetchedResults<WorkOrder>
 
-    // Payment Methods
-    enum PaymentMethod: String, CaseIterable, Identifiable {
-        case applePay = "Apple Pay"
-        case paypal = "PayPal"
-        case zelle = "Zelle"
-        case cash = "Cash"
-        var id: String { self.rawValue }
-    }
 
     // Calculate total amount dynamically
     var totalAmount: Double {
