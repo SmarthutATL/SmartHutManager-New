@@ -11,58 +11,74 @@ struct MessagesView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
-                if conversations.isEmpty {
-                    VStack {
-                        Text("No Messages")
-                            .font(.title2)
-                            .foregroundColor(.gray)
-                        Text("Start a conversation with a technician or customer.")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 20)
-                    }
-                } else {
-                    List {
-                        ForEach(conversations) { conversation in
-                            NavigationLink(destination: MessageDetailView(conversation: conversation)) {
-                                HStack {
-                                    Circle()
-                                        .fill(roleColor(for: conversation.participants ?? ""))
-                                        .frame(width: 40, height: 40)
-                                        .overlay(Text(initials(for: conversation.name ?? "Unknown"))
-                                            .font(.headline)
-                                            .foregroundColor(.white)
-                                        )
-                                    VStack(alignment: .leading) {
-                                        Text(conversation.name ?? "Unknown")
-                                            .font(.headline)
-                                        Text(conversation.lastMessage ?? "No messages yet")
-                                            .font(.subheadline)
-                                            .foregroundColor(.gray)
-                                            .lineLimit(1)
-                                    }
-                                    Spacer()
-                                    if let timestamp = conversation.timestamp {
-                                        Text(formatDate(timestamp))
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                    }
-                                }
-                                .padding(.vertical, 8)
-                            }
+            ZStack {
+                VStack {
+                    if conversations.isEmpty {
+                        VStack {
+                            Text("No Messages")
+                                .font(.title2)
+                                .foregroundColor(.gray)
+                            Text("Start a conversation with a technician or customer.")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 20)
                         }
-                        .onDelete(perform: deleteConversation)
+                    } else {
+                        List {
+                            ForEach(conversations) { conversation in
+                                NavigationLink(destination: MessageDetailView(conversation: conversation)) {
+                                    HStack {
+                                        Circle()
+                                            .fill(roleColor(for: conversation.participants ?? ""))
+                                            .frame(width: 40, height: 40)
+                                            .overlay(Text(initials(for: conversation.name ?? "Unknown"))
+                                                .font(.headline)
+                                                .foregroundColor(.white)
+                                            )
+                                        VStack(alignment: .leading) {
+                                            Text(conversation.name ?? "Unknown")
+                                                .font(.headline)
+                                            Text(conversation.lastMessage ?? "No messages yet")
+                                                .font(.subheadline)
+                                                .foregroundColor(.gray)
+                                                .lineLimit(1)
+                                        }
+                                        Spacer()
+                                        if let timestamp = conversation.timestamp {
+                                            Text(formatDate(timestamp))
+                                                .font(.caption)
+                                                .foregroundColor(.gray)
+                                        }
+                                    }
+                                    .padding(.vertical, 8)
+                                }
+                            }
+                            .onDelete(perform: deleteConversation)
+                        }
+                        .listStyle(InsetGroupedListStyle())
                     }
-                    .listStyle(InsetGroupedListStyle())
                 }
-            }
-            .navigationTitle("Messages")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { isCreatingNewConversation = true }) {
-                        Label("New", systemImage: "square.and.pencil")
+                .navigationTitle("Messages")
+                
+                // Floating New Conversation Button
+                VStack {
+                    Spacer()
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            isCreatingNewConversation = true
+                        }) {
+                            Image(systemName: "plus.message.fill")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.blue)
+                                .clipShape(Circle())
+                                .shadow(radius: 4)
+                        }
+                        .padding(.trailing, 20)
+                        .padding(.bottom, 20)
                     }
                 }
             }

@@ -81,6 +81,13 @@ struct SettingsView: View {
                                 .foregroundColor(isDarkMode ? .white : .black)
                         }
                     }
+                    
+                    cardView {
+                                         NavigationLink(destination: InventoryManagementView()) {
+                                             SettingsItem(icon: "archivebox.fill", title: "Manage Inventory", color: .green)
+                                                 .foregroundColor(isDarkMode ? .white : .black)
+                                         }
+                                     }
 
                     // Invoices Section (Face ID Authentication)
                     cardView {

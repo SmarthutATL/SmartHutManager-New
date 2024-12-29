@@ -13,6 +13,10 @@ struct TradesmenDetailView: View {
                     profileSection(tradesman: tradesman)
                         .padding(.horizontal)
 
+                    // Points Section
+                    pointsSection(tradesman: tradesman)
+                        .padding(.horizontal)
+
                     // Badges Section
                     badgesSection(tradesman: tradesman)
                         .padding(.horizontal)
@@ -30,14 +34,7 @@ struct TradesmenDetailView: View {
                 startShineAnimation() // Start the shine animation when the view appears
             }
         }
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.blue, Color.white]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .edgesIgnoringSafeArea([.top]) // Apply only to specific edges
-        )
+        .background(Color(.systemBackground).edgesIgnoringSafeArea(.all)) // Background adapts to dark or light mode
         .navigationTitle("Technician Leaderboards")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -65,10 +62,6 @@ struct TradesmenDetailView: View {
             Text(tradesman.name ?? "Unknown Tradesman")
                 .font(.title2)
                 .fontWeight(.bold)
-
-            Text("Points: \(tradesman.points)")
-                .font(.headline)
-                .foregroundColor(.blue)
         }
         .padding()
         .background(
@@ -76,6 +69,25 @@ struct TradesmenDetailView: View {
                 .cornerRadius(20)
         )
         .shadow(radius: 10)
+    }
+
+    // MARK: - Points Section
+    private func pointsSection(tradesman: Tradesmen) -> some View {
+        VStack {
+            Text("Points")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            Text("\(tradesman.points)")
+                .font(.title.bold())
+                .foregroundColor(.blue)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.secondarySystemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        )
     }
 
     // MARK: - Badges Section
@@ -107,20 +119,18 @@ struct TradesmenDetailView: View {
     // MARK: - Actions Section
     private func actionsSection(tradesman: Tradesmen) -> some View {
         VStack(spacing: 16) {
-            // View All Badges Button with Left-to-Right Shine Animation
             shiningButton(
                 title: "View All Badges",
                 icon: "rosette",
-                gradientColors: [Color.purple, Color.blue], // Updated gradient
+                gradientColors: [Color.purple, Color.blue],
                 destination: AnyView(BadgesView(tradesmanName: tradesman.name ?? "Tradesman")),
                 shineOffset: $badgesShineOffset
             )
 
-            // View Leaderboard Button with Right-to-Left Shine Animation
             shiningButton(
                 title: "View Leaderboard",
                 icon: "chart.bar.fill",
-                gradientColors: [Color.purple, Color.blue], // Updated gradient
+                gradientColors: [Color.purple, Color.blue],
                 destination: AnyView(LeaderboardView()),
                 shineOffset: $leaderboardShineOffset
             )
@@ -137,7 +147,6 @@ struct TradesmenDetailView: View {
     ) -> some View {
         NavigationLink(destination: destination) {
             ZStack {
-                // Button Background
                 HStack {
                     Image(systemName: icon)
                         .font(.title2)
@@ -158,7 +167,6 @@ struct TradesmenDetailView: View {
                 .cornerRadius(10)
                 .shadow(radius: 5)
 
-                // Light Shine Effect
                 Rectangle()
                     .fill(
                         LinearGradient(
@@ -167,10 +175,9 @@ struct TradesmenDetailView: View {
                             endPoint: .trailing
                         )
                     )
-                    .frame(width: 400, height: 60) // Adjust width to the button's width
-                    .offset(x: shineOffset.wrappedValue) // Use dynamic offset
+                    .frame(width: 400, height: 60)
+                    .offset(x: shineOffset.wrappedValue)
                     .mask(
-                        // Mask the shine to the button area
                         HStack {
                             Image(systemName: icon)
                                 .font(.title2)
@@ -213,20 +220,18 @@ struct TradesmenDetailView: View {
 
     // MARK: - Continuous Shine Animation
     private func startShineAnimation() {
-        // Animate the "View All Badges" shine (left to right and back)
         withAnimation(
-            Animation.linear(duration: 4.0) // Increase duration for slower animation
+            Animation.linear(duration: 4.0)
                 .repeatForever(autoreverses: true)
         ) {
-            badgesShineOffset = 150 // Adjust to match half the button width
+            badgesShineOffset = 150
         }
 
-        // Animate the "View Leaderboard" shine (right to left and back)
         withAnimation(
-            Animation.linear(duration: 4.0) // Increase duration for slower animation
+            Animation.linear(duration: 4.0)
                 .repeatForever(autoreverses: true)
         ) {
-            leaderboardShineOffset = -150 // Adjust to match half the button width
+            leaderboardShineOffset = -150
         }
     }
 }
