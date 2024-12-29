@@ -100,7 +100,7 @@ struct SettingsView: View {
                     }
 
                     // Technician Management Section (Face ID Authentication)
-                    cardView {
+                    cardView(isGold: true) {
                         Button(action: {
                             authenticateUser(for: .manageTechnicians)
                         }) {
@@ -260,7 +260,7 @@ struct SettingsView: View {
                 VStack {
                     HStack {
                         Spacer()
-                            .frame(maxWidth: 160) // Add padding to move the lock icon left
+                            .frame(maxWidth: 170) // Add padding to move the lock icon left
                         Image(systemName: "lock.fill")
                             .foregroundColor(.white)
                             .padding(8)

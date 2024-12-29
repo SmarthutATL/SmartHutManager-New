@@ -50,7 +50,7 @@ struct RecentlyDeletedItemsView: View {
                 .padding()
             }
             .navigationTitle("Recently Deleted")
-            .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
+            .background(Color(.systemBackground).edgesIgnoringSafeArea(.all))
         }
     }
 

@@ -1,6 +1,7 @@
 import SwiftUI
 import LocalAuthentication
 import FirebaseFirestore
+import MessageUI
 
 struct TradesmanAccountSection: View {
     let tradesman: Tradesmen?
@@ -9,30 +10,32 @@ struct TradesmanAccountSection: View {
     @State private var authenticationFailed: Bool = false
     @State private var companyID: String? = nil
     @State private var isLoading = true
+    @State private var isShowingMailView = false
+    @State private var emailErrorMessage: String? = nil
 
     var body: some View {
         if let tradesman = tradesman {
             VStack(alignment: .leading, spacing: 16) {
                 // Header with Name, Job Title, and Image/Icon
                 HStack(spacing: 16) {
-                    Image(systemName: "person.crop.circle.fill") // Replace with actual image if available
+                    Image(systemName: "person.crop.circle.fill")
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 80, height: 80) // Larger image
+                        .frame(width: 80, height: 80)
                         .foregroundColor(.blue)
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         Text(tradesman.name ?? "Unknown")
-                            .font(.system(size: 24, weight: .semibold)) // Larger text
+                            .font(.system(size: 24, weight: .semibold))
                             .foregroundColor(.primary)
-                        
+
                         Text(tradesman.jobTitle ?? "Unknown Job Title")
                             .font(.system(size: 18))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
                 }
-                .padding(.top, 16) // Add padding from top of the screen
+                .padding(.top, 16)
 
                 Divider()
 
@@ -47,6 +50,21 @@ struct TradesmanAccountSection: View {
                         Text(companyID)
                             .font(.body)
                             .foregroundColor(.secondary)
+
+                        Spacer()
+
+                        // Button to send Company ID via email
+                        Button(action: {
+                            sendCompanyIDEmail(to: "technician@example.com", companyID: companyID)
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "paperplane.fill")
+                                    .foregroundColor(.blue)
+                                Text("Send")
+                                    .font(.body)
+                                    .foregroundColor(.blue)
+                            }
+                        }
                     }
                     .padding()
                 } else {
@@ -67,13 +85,13 @@ struct TradesmanAccountSection: View {
                                 Image(systemName: "lock.fill")
                                     .foregroundColor(.red)
                                 Text("Unlock Personal Info")
-                                    .font(.system(size: 18)) // Larger button text
+                                    .font(.system(size: 18))
                                     .foregroundColor(.blue)
                             }
                         }
                         .buttonStyle(BorderlessButtonStyle())
                         .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity) // Make the button full width
+                        .frame(maxWidth: .infinity)
                         .background(Color(UIColor.secondarySystemBackground))
                         .cornerRadius(10)
                     }
@@ -85,12 +103,12 @@ struct TradesmanAccountSection: View {
 
                 if authenticationFailed {
                     Text("Authentication failed. Please try again.")
-                        .font(.system(size: 16)) // Larger error message text
+                        .font(.system(size: 16))
                         .foregroundColor(.red)
                         .padding(.top, 8)
                 }
 
-                Spacer() // Pushes content to the top
+                Spacer()
             }
             .padding(.horizontal)
             .onAppear {
@@ -103,6 +121,7 @@ struct TradesmanAccountSection: View {
                 .padding()
         }
     }
+
     // MARK: - Fetch Company ID
     private func fetchCompanyID() {
         guard let email = tradesman?.email else {
@@ -135,11 +154,28 @@ struct TradesmanAccountSection: View {
         }
     }
 
+    // MARK: - Send Email
+    private func sendCompanyIDEmail(to email: String, companyID: String) {
+        if MFMailComposeViewController.canSendMail() {
+            let mailComposeViewController = MFMailComposeViewController()
+            mailComposeViewController.setToRecipients([email])
+            mailComposeViewController.setSubject("Company ID for Registration")
+            mailComposeViewController.setMessageBody("Your Company ID for registration is: \(companyID)", isHTML: false)
+
+            // Use UIWindowScene to present the email composer
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootViewController = windowScene.windows.first?.rootViewController {
+                rootViewController.present(mailComposeViewController, animated: true)
+            }
+        } else {
+            emailErrorMessage = "Unable to send email. Please configure your email account."
+        }
+    }
+
     // MARK: - Personal Info View
     @ViewBuilder
     private func personalInfoView(tradesman: Tradesmen) -> some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Phone Number
             if let phoneNumber = tradesman.phoneNumber, !phoneNumber.isEmpty {
                 InfoRow(icon: "phone.fill", text: phoneNumber, iconColor: .green) {
                     if let url = URL(string: "tel://\(phoneNumber)"), UIApplication.shared.canOpenURL(url) {
@@ -147,8 +183,6 @@ struct TradesmanAccountSection: View {
                     }
                 }
             }
-
-            // Email
             if let email = tradesman.email, !email.isEmpty {
                 InfoRow(icon: "envelope.fill", text: email, iconColor: .orange) {
                     if let url = URL(string: "mailto:\(email)"), UIApplication.shared.canOpenURL(url) {
@@ -156,8 +190,6 @@ struct TradesmanAccountSection: View {
                     }
                 }
             }
-
-            // Address
             if let address = tradesman.address, !address.isEmpty {
                 InfoRow(icon: "mappin.and.ellipse", text: address, iconColor: .red) {
                     if let url = URL(string: "http://maps.apple.com/?q=\(address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"),
@@ -167,7 +199,7 @@ struct TradesmanAccountSection: View {
                 }
             }
         }
-        .padding(20) // Add padding inside the card
+        .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 15)
                 .fill(Color(UIColor.secondarySystemBackground))
@@ -193,11 +225,11 @@ struct TradesmanAccountSection: View {
                         .font(.system(size: 18, weight: .medium))
                         .foregroundColor(.blue)
                         .underline()
-                    Spacer() // Push content to the left
+                    Spacer()
                 }
                 .padding(.vertical, 8)
             }
-            .buttonStyle(PlainButtonStyle()) // Removes default button styling
+            .buttonStyle(PlainButtonStyle())
         }
     }
 
