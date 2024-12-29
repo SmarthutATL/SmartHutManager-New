@@ -3,7 +3,7 @@ import PassKit // For Apple Pay
 import MessageUI // For sending email
 import UIKit
 
-class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, MFMessageComposeViewControllerDelegate {
+class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, PKPaymentAuthorizationViewControllerDelegate {
     
     // Payment methods enum
     enum PaymentMethod {
@@ -12,47 +12,57 @@ class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, MFMe
         case zelle
     }
     
-    // Function to generate and send a payment link
-    func requestPayment(for customer: Customer, amount: Double, paymentMethod: PaymentMethod, from viewController: UIViewController) {
+    private var onSuccess: (() -> Void)?
+    private var onError: ((String) -> Void)?
+
+    // Singleton instance
+    static let shared = PaymentRequestManager()
+
+    // MARK: - Request Payment
+    func requestPayment(for customer: Customer, amount: Double, paymentMethod: PaymentMethod, from viewController: UIViewController, onSuccess: @escaping () -> Void, onError: @escaping (String) -> Void) {
+        self.onSuccess = onSuccess
+        self.onError = onError
+
         switch paymentMethod {
         case .applePay:
             initiateApplePay(for: customer, amount: amount, from: viewController)
-        case .paypal:
-            sendPaymentLink(for: customer, method: .paypal, amount: amount, from: viewController)
-        case .zelle:
-            sendPaymentLink(for: customer, method: .zelle, amount: amount, from: viewController)
+        case .paypal, .zelle:
+            sendPaymentLink(for: customer, method: paymentMethod, amount: amount, from: viewController)
         }
     }
-    
+
     // MARK: - Apple Pay Handling
     private func initiateApplePay(for customer: Customer, amount: Double, from viewController: UIViewController) {
         let paymentRequest = PKPaymentRequest()
         paymentRequest.merchantIdentifier = "merchant.SmarthutATL.com"
-        paymentRequest.supportedNetworks = [.visa, .masterCard, .amex,]
+        paymentRequest.supportedNetworks = [.visa, .masterCard, .amex]
         paymentRequest.merchantCapabilities = .threeDSecure
         paymentRequest.countryCode = "US"
         paymentRequest.currencyCode = "USD"
         
+        // Customer name fallback
+        let customerName = customer.name ?? "Customer"
         paymentRequest.paymentSummaryItems = [
-            PKPaymentSummaryItem(label: customer.name ?? "Unknown Customer", amount: NSDecimalNumber(value: amount))
+            PKPaymentSummaryItem(label: customerName, amount: NSDecimalNumber(value: amount))
         ]
-        
-        let paymentAuthorizationViewController = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest)
-        paymentAuthorizationViewController?.delegate = viewController as? PKPaymentAuthorizationViewControllerDelegate
-        
-        if let vc = paymentAuthorizationViewController {
-            viewController.present(vc, animated: true, completion: nil)
-        } else {
-            print("Error presenting Apple Pay.")
+
+        guard let paymentAuthorizationViewController = PKPaymentAuthorizationViewController(paymentRequest: paymentRequest) else {
+            onError?("Unable to present Apple Pay interface.")
+            return
         }
+
+        paymentAuthorizationViewController.delegate = self
+        viewController.present(paymentAuthorizationViewController, animated: true)
     }
-    
+
     // MARK: - PayPal and Zelle Link Handling
     private func sendPaymentLink(for customer: Customer, method: PaymentMethod, amount: Double, from viewController: UIViewController) {
         let paymentService = (method == .paypal) ? "PayPal" : "Zelle"
-        
+        let customerName = customer.name ?? "Customer"
+        let customerEmail = customer.email ?? ""
+
         let messageBody = """
-        Hi \(customer.name ?? "Customer"),
+        Hi \(customerName),
         
         You owe $\(String(format: "%.2f", amount)).
         
@@ -62,23 +72,25 @@ class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, MFMe
         
         Thank you!
         """
-        
+
         if MFMailComposeViewController.canSendMail() {
             let mailComposer = MFMailComposeViewController()
             mailComposer.mailComposeDelegate = self
-            mailComposer.setToRecipients([customer.email ?? ""])
+            mailComposer.setToRecipients([customerEmail])
             mailComposer.setSubject("\(paymentService) Payment Request")
             mailComposer.setMessageBody(messageBody, isHTML: false)
             
             viewController.present(mailComposer, animated: true)
         } else {
-            let alert = UIAlertController(title: "Mail not available", message: "Please configure a mail account to send payment requests.", preferredStyle: .alert)
-            alert.addAction(UIAlertAction(title: "OK", style: .default))
-            viewController.present(alert, animated: true)
+            showAlert(
+                title: "Mail Not Available",
+                message: "Please configure a mail account to send payment requests.",
+                on: viewController
+            )
         }
     }
-    
-    // MARK: - Generate Payment Link (For PayPal/Zelle)
+
+    // MARK: - Generate Payment Link
     private func generatePaymentLink(for customer: Customer, method: PaymentMethod, amount: Double) -> String {
         switch method {
         case .paypal:
@@ -89,13 +101,40 @@ class PaymentRequestManager: NSObject, MFMailComposeViewControllerDelegate, MFMe
             return ""
         }
     }
-    
-    // MARK: - Mail and Message Delegate Methods
+
+    // MARK: - PKPaymentAuthorizationViewControllerDelegate
+    func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
+        controller.dismiss(animated: true) {
+            self.onError?("Payment canceled or failed.")
+        }
+    }
+
+    func paymentAuthorizationViewController(
+        _ controller: PKPaymentAuthorizationViewController,
+        didAuthorizePayment payment: PKPayment,
+        completion: @escaping (PKPaymentAuthorizationStatus) -> Void
+    ) {
+        // Simulate payment success
+        let paymentSuccess = true // Replace with your payment validation logic
+
+        if paymentSuccess {
+            completion(.success)
+            onSuccess?()
+        } else {
+            completion(.failure)
+            onError?("Payment authorization failed.")
+        }
+    }
+
+    // MARK: - Mail Compose Delegate
     func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
         controller.dismiss(animated: true, completion: nil)
     }
-    
-    func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
-        controller.dismiss(animated: true, completion: nil)
+
+    // MARK: - Utility Function
+    private func showAlert(title: String, message: String, on viewController: UIViewController) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        viewController.present(alert, animated: true)
     }
 }

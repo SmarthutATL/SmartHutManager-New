@@ -134,12 +134,12 @@ struct SettingsView: View {
 
                     // Manage Payment Methods Section
                     cardView {
-                        NavigationLink(destination: Text("Manage Payment Methods")) {
+                        NavigationLink(destination: ManagePaymentsView(viewContext: viewContext)) {
                             SettingsItem(icon: "creditcard.fill", title: "Manage Payment Methods", color: .green)
                                 .foregroundColor(isDarkMode ? .white : .black)
                         }
                     }
-
+                    
                     // Notification Settings Section
                     cardView {
                         NavigationLink(destination: NotificationSettingsView()) {

@@ -67,7 +67,7 @@ struct CRMView: View {
                         Button(action: {
                             showingAddCustomerView.toggle()
                         }) {
-                            Image(systemName: "plus")
+                            Image(systemName: "person.crop.circle.fill.badge.plus")
                                 .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding()

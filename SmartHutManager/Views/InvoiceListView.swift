@@ -88,7 +88,7 @@ struct InvoiceListView: View {
                         Button(action: {
                             controller.showCreateInvoiceView.toggle()
                         }) {
-                            Image(systemName: "plus")
+                            Image(systemName: "note.text.badge.plus")
                                 .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding()
