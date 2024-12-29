@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var isShowingInvoicesList = false
     @State private var isShowingSubscriptionPlanView = false
     @State private var authenticationFailed = false
+    @State private var goldShineOffset: CGFloat = -250
 
     @EnvironmentObject var authViewModel: AuthViewModel
     @EnvironmentObject var deletedItemsManager: DeletedItemsManager // Access shared manager
@@ -53,7 +54,7 @@ struct SettingsView: View {
                     }
 
                     // Subscription Plan Section
-                    cardView {
+                    cardView(isGold: true) {
                         Button(action: {
                             isShowingSubscriptionPlanView.toggle()
                         }) {
@@ -66,7 +67,7 @@ struct SettingsView: View {
                                     .foregroundColor(isDarkMode ? .white : .black)
                                 Spacer()
                                 Text(selectedPlan)
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(.black)
                                 Image(systemName: "chevron.right")
                                     .foregroundColor(.gray)
                             }
@@ -74,7 +75,7 @@ struct SettingsView: View {
                     }
 
                     // Custom Branding Section
-                    cardView {
+                    cardView(isGold: true) {
                         NavigationLink(destination: CustomBrandingView()) {
                             SettingsItem(icon: "paintbrush.fill", title: "Custom Branding", color: .purple)
                                 .foregroundColor(isDarkMode ? .white : .black)
@@ -116,7 +117,7 @@ struct SettingsView: View {
                     }
 
                     // Technician Performance Section
-                    cardView {
+                    cardView(isGold: true) {
                         NavigationLink(destination: TechnicianPerformanceView()) {
                             SettingsItem(icon: "chart.bar.fill", title: "Technician Performance", color: .orange)
                                 .foregroundColor(isDarkMode ? .white : .black)
@@ -204,14 +205,87 @@ struct SettingsView: View {
     }
 
     // Reusable card-style container
-    private func cardView<Content: View>(@ViewBuilder content: @escaping () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            content()
+    private func cardView<Content: View>(
+        isGold: Bool = false,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        ZStack {
+            // Background for normal or gold cards
+            VStack(alignment: .leading, spacing: 12) {
+                content()
+            }
+            .padding()
+            .background(
+                LinearGradient(
+                    gradient: isGold
+                        ? Gradient(colors: [Color.yellow.opacity(0.8), Color.orange.opacity(0.8)])
+                        : Gradient(colors: [Color(.secondarySystemBackground), Color(.secondarySystemBackground)]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            
+            // Shine effect for gold cards
+            if isGold {
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.clear, .white.opacity(0.5), .clear]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: 400, height: 60) // Adjust width to match card size
+                    .offset(x: goldShineOffset) // Dynamic offset for shine
+                    .mask(
+                        VStack(alignment: .leading, spacing: 12) {
+                            content()
+                        }
+                        .padding()
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.yellow.opacity(0.8), Color.orange.opacity(0.8)]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(12)
+                    )
+            }
+            
+            // Lock Icon Overlay for Gold Cards
+            if isGold {
+                VStack {
+                    HStack {
+                        Spacer()
+                            .frame(maxWidth: 160) // Add padding to move the lock icon left
+                        Image(systemName: "lock.fill")
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())
+                            .padding()
+                    }
+                    Spacer()
+                }
+            }
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+        .onAppear {
+            if isGold {
+                startGoldShineAnimation() // Start shine animation for gold cards
+            }
+        }
+    }
+    
+    private func startGoldShineAnimation() {
+        withAnimation(
+            Animation.linear(duration: 4.0)
+                .repeatForever(autoreverses: true)
+        ) {
+            goldShineOffset = 250 // Adjust for smooth animation across the card
+        }
     }
 
     private func fetchCurrentPlan() {
