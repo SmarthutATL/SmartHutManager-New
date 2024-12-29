@@ -40,12 +40,13 @@ struct UploadQRCodeView: View {
 
                 VStack(spacing: 16) {
                     // Zelle QR Code Upload
-                    Button(action: { showOverwriteAlert(for: "Zelle") }) {
-                        GenerateLinkButtonContent(
-                            label: "Upload Zelle QR Code",
-                            imageName: "zelle_logo", // Logo for Zelle
-                            gradient: Gradient(colors: [Color.purple, Color.blue])
-                        )
+                    cardView(
+                        title: "Upload Zelle QR Code",
+                        imageName: "zelle_logo",
+                        gradient: Gradient(colors: [Color.purple, Color.blue]),
+                        qrCodeExists: hasQRCode(for: "Zelle")
+                    ) {
+                        showOverwriteAlert(for: "Zelle")
                     }
                     .sheet(isPresented: $showImagePickerForZelle) {
                         ImagePicker(selectedImage: Binding(
@@ -57,12 +58,13 @@ struct UploadQRCodeView: View {
                     }
 
                     // PayPal QR Code Upload
-                    Button(action: { showOverwriteAlert(for: "PayPal") }) {
-                        GenerateLinkButtonContent(
-                            label: "Upload PayPal QR Code",
-                            imageName: "paypal_logo", // Logo for PayPal
-                            gradient: Gradient(colors: [Color.blue, Color.cyan])
-                        )
+                    cardView(
+                        title: "Upload PayPal QR Code",
+                        imageName: "paypal_logo",
+                        gradient: Gradient(colors: [Color.blue, Color.cyan]),
+                        qrCodeExists: hasQRCode(for: "PayPal")
+                    ) {
+                        showOverwriteAlert(for: "PayPal")
                     }
                     .sheet(isPresented: $showImagePickerForPayPal) {
                         ImagePicker(selectedImage: Binding(
@@ -95,10 +97,15 @@ struct UploadQRCodeView: View {
         .navigationBarBackButtonHidden(true) // Hide the default back button
     }
     
+    // MARK: - Helper Functions
+    
+    private func hasQRCode(for type: String) -> Bool {
+        paymentQRCodes.contains { $0.type == type }
+    }
+    
     private func showOverwriteAlert(for type: String) {
         overwriteType = type
-        let hasExistingQRCode = paymentQRCodes.first(where: { $0.type == type }) != nil
-        if hasExistingQRCode {
+        if hasQRCode(for: type) {
             showOverwriteAlert = true
         } else {
             if type == "Zelle" {
@@ -122,5 +129,44 @@ struct UploadQRCodeView: View {
         }
         
         try? viewContext.save()
+    }
+    
+    // MARK: - Card View
+    private func cardView(
+        title: String,
+        imageName: String,
+        gradient: Gradient,
+        qrCodeExists: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack {
+                HStack {
+                    Image(imageName)
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                    Text(title)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                }
+                Spacer()
+                if qrCodeExists {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.title2)
+                } else {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.red)
+                        .font(.title2)
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity)
+            .background(
+                LinearGradient(gradient: gradient, startPoint: .leading, endPoint: .trailing)
+            )
+            .cornerRadius(16)
+            .shadow(radius: 5)
+        }
     }
 }

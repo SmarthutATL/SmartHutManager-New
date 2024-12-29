@@ -167,7 +167,7 @@ struct LeaderboardView: View {
                             // Badge Icon
                             let badges = GamificationManager.shared.getBadges(for: entry.user, context: context)
                             if !badges.isEmpty {
-                                Image(systemName: "rosette")
+                                Image(systemName: "trophy.circle.fill")
                                     .resizable()
                                     .frame(width: 24, height: 24)
                                     .foregroundColor(.yellow)
