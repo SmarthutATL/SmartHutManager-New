@@ -134,7 +134,7 @@ struct SettingsView: View {
 
                     // Notification Settings Section
                     cardView {
-                        NavigationLink(destination: Text("Notification Settings")) {
+                        NavigationLink(destination: NotificationSettingsView()) {
                             SettingsItem(icon: "bell.fill", title: "Notification Settings", color: .blue)
                                 .foregroundColor(.white)
                         }

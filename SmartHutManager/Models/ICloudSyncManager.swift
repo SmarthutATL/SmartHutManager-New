@@ -1,7 +1,8 @@
 import Foundation
 import CoreData
+import CloudKit
 
-// MARK: - iCloud Sync Manager (Handles sync updates)
+// MARK: - iCloud Sync Manager
 class ICloudSyncManager {
     private let persistentContainer: NSPersistentCloudKitContainer
     private var isSyncInProgress = false
@@ -74,5 +75,62 @@ class ICloudSyncManager {
     private func logError(_ error: Error, context: String) {
         let nsError = error as NSError
         print("Error in \(context): \(nsError), \(nsError.userInfo)")
+    }
+
+    // MARK: - Assign to a Custom Record Zone
+    func assignToRecordZone(completion: @escaping (Error?) -> Void) {
+        let context = persistentContainer.viewContext
+
+        context.perform {
+            do {
+                // Fetch all JobCategoryEntity instances
+                let fetchRequest = NSFetchRequest<JobCategoryEntity>(entityName: "JobCategoryEntity")
+                let jobCategories = try context.fetch(fetchRequest)
+
+                for jobCategory in jobCategories {
+                    let record = CKRecord(recordType: "JobCategoryEntity", recordID: CKRecord.ID(recordName: jobCategory.objectID.uriRepresentation().absoluteString))
+                    record["name"] = jobCategory.name as CKRecordValue?
+
+                    // Create a custom zone
+                    let customZoneID = CKRecordZone.ID(zoneName: "CustomZone", ownerName: CKCurrentUserDefaultName)
+                    let customZone = CKRecordZone(zoneID: customZoneID)
+                    
+                    // Add to the private CloudKit database
+                    let privateDatabase = CKContainer.default().privateCloudDatabase
+
+                    let zoneCreationOperation = CKModifyRecordZonesOperation(recordZonesToSave: [customZone], recordZoneIDsToDelete: nil)
+                    zoneCreationOperation.modifyRecordZonesResultBlock = { result in
+                        switch result {
+                        case .success:
+                            print("Custom zone created successfully.")
+                            // Save records to the custom zone
+                            self.saveRecordToZone(record: record, database: privateDatabase, completion: completion)
+                        case .failure(let error):
+                            print("Error creating custom zone: \(error)")
+                            completion(error)
+                        }
+                    }
+                    privateDatabase.add(zoneCreationOperation)
+                }
+            } catch {
+                print("Failed to fetch JobCategoryEntity objects: \(error)")
+                completion(error)
+            }
+        }
+    }
+
+    private func saveRecordToZone(record: CKRecord, database: CKDatabase, completion: @escaping (Error?) -> Void) {
+        let operation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
+        operation.modifyRecordsResultBlock = { result in
+            switch result {
+            case .success:
+                print("Record successfully saved to custom zone.")
+                completion(nil)
+            case .failure(let error):
+                print("Error saving record to custom zone: \(error)")
+                completion(error)
+            }
+        }
+        database.add(operation)
     }
 }
