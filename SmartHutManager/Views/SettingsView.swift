@@ -30,6 +30,14 @@ struct SettingsView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
+                    // General Settings Section
+                    cardView {
+                        NavigationLink(destination: GeneralSettingsView()) {
+                            SettingsItem(icon: "gearshape.fill", title: "General Settings", color: .yellow)
+                                .foregroundColor(.white)
+                        }
+                    }
+
                     // Tradesman Account Section
                     cardView {
                         NavigationLink(destination: TradesmanAccountSection(tradesman: adminTradesmen.first)) {
@@ -88,7 +96,7 @@ struct SettingsView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     .sheet(isPresented: $isShowingInvoicesList) {
-                        InvoiceListView(viewContext: viewContext) // Show invoices after Face ID authentication
+                        InvoiceListView(viewContext: viewContext)
                     }
 
                     // Technician Management Section (Face ID Authentication)
@@ -105,7 +113,7 @@ struct SettingsView: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     .sheet(isPresented: $isShowingTradesmenList) {
-                        TradesmenListView() // Show tradesmen list after Face ID authentication
+                        TradesmenListView()
                     }
 
                     // Technician Performance Section
@@ -174,7 +182,6 @@ struct SettingsView: View {
         let context = LAContext()
         var error: NSError?
 
-        // Check if Face ID or Passcode is available
         if context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) {
             let reason = "Authenticate to \(purpose == .manageTechnicians ? "manage technicians" : "manage invoices")"
 

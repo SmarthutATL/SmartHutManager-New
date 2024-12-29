@@ -10,14 +10,14 @@ import FirebaseAnalytics
 
 @main
 struct SmartHutManagerApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate // Add this line
-
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     let persistenceController = PersistenceController.shared
     private var iCloudSyncManager: ICloudSyncManager
 
     @StateObject private var authViewModel = AuthViewModel()
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = true
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = true // Appearance preference
 
     init() {
         print("Initializing SmartHutManagerApp")
@@ -27,13 +27,13 @@ struct SmartHutManagerApp: App {
         print("Firebase configured")
 
         #if DEBUG
-            let providerFactory = AppCheckDebugProviderFactory()
-            AppCheck.setAppCheckProviderFactory(providerFactory)
-            print("Firebase App Check debug provider set")
+        let providerFactory = AppCheckDebugProviderFactory()
+        AppCheck.setAppCheckProviderFactory(providerFactory)
+        print("Firebase App Check debug provider set")
         #else
-            let providerFactory = DeviceCheckProviderFactory()
-            AppCheck.setAppCheckProviderFactory(providerFactory)
-            print("Firebase App Check DeviceCheck provider set")
+        let providerFactory = DeviceCheckProviderFactory()
+        AppCheck.setAppCheckProviderFactory(providerFactory)
+        print("Firebase App Check DeviceCheck provider set")
         #endif
 
         ValueTransformer.setValueTransformer(InvoiceItemTransformer(), forName: NSValueTransformerName("InvoiceItemTransformer"))
@@ -86,7 +86,7 @@ struct SmartHutManagerApp: App {
                     handleScenePhaseChange()
                 }
             }
-            .preferredColorScheme(.dark)
+            .preferredColorScheme(isDarkMode ? .dark : .light) // Apply appearance preference
         }
     }
 
