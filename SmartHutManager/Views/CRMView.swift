@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CRMView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject var deletedItemsManager: DeletedItemsManager // Access shared manager
     
     // State for search query and add customer view
     @State private var searchText = ""
@@ -37,7 +38,11 @@ struct CRMView: View {
                     // Grouped customer list
                     List {
                         ForEach(groupedCustomers.keys.sorted(), id: \.self) { key in
-                            Section(header: Text(key).font(.headline)) {
+                            Section(
+                                header: Text(key)
+                                    .font(.headline)
+                                    .foregroundColor(.blue) // Make section headers blue
+                            ) {
                                 ForEach(groupedCustomers[key] ?? [], id: \.objectID) { customer in
                                     NavigationLink(destination: CustomerDetailView(customer: customer)) {
                                         customerRow(for: customer)
@@ -114,7 +119,21 @@ struct CRMView: View {
     // MARK: - Delete Customers Logic
     private func deleteCustomers(from group: [Customer], offsets: IndexSet) {
         withAnimation {
-            offsets.map { group[$0] }.forEach(viewContext.delete)
+            offsets.map { group[$0] }.forEach { customer in
+                // Add the deleted customer to the RecentlyDeletedItemsManager
+                if let name = customer.name {
+                    let deletedItem = DeletedItem(
+                        id: UUID(), // Provide a new UUID for the id
+                        type: .customer,
+                        description: name,
+                        originalDate: nil,
+                        originalStatus: nil
+                    )
+                    deletedItemsManager.addDeletedItem(deletedItem)
+                }
+                // Delete the customer from Core Data
+                viewContext.delete(customer)
+            }
             saveContext()
         }
     }

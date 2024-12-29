@@ -22,7 +22,7 @@ struct BadgesView: View {
                         .font(.largeTitle)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
-
+                    
                     Text("Badges")
                         .font(.title2)
                         .fontWeight(.semibold)
@@ -38,8 +38,7 @@ struct BadgesView: View {
                     // Grid Display for Badges
                     LazyVGrid(columns: adaptiveColumns, spacing: 16) {
                         ForEach(badges, id: \.self) { badge in
-                            badgeItemView(badge: badge)
-                                .transition(.scale)
+                            AnimatedBadgeView(title: badge) // Use the animated badge view
                         }
                     }
                     .padding()
@@ -72,41 +71,6 @@ struct BadgesView: View {
         .background(VisualEffectBlur(blurStyle: .systemUltraThinMaterialDark))
         .cornerRadius(20)
         .shadow(radius: 5)
-    }
-    
-    // MARK: - Badge Item View
-    private func badgeItemView(badge: String) -> some View {
-        VStack(spacing: 8) {
-            Image(systemName: "star.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 50, height: 50)
-                .foregroundColor(.yellow)
-            
-            Text(badge)
-                .font(.caption)
-                .fontWeight(.semibold)
-                .multilineTextAlignment(.center)
-                .foregroundColor(.white)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity)
-        }
-        .frame(width: 120, height: 120)
-        .background(
-            LinearGradient(
-                gradient: Gradient(colors: [Color.purple.opacity(0.6), Color.blue.opacity(0.6)]),
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.3), radius: 5, x: 2, y: 4)
-        .scaleEffect(0.95)
-        .onTapGesture {
-            withAnimation(.spring()) {
-                // Add interactivity if needed
-            }
-        }
     }
     
     // MARK: - Adaptive Grid Layout

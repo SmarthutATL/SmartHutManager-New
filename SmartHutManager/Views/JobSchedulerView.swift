@@ -15,8 +15,13 @@ struct DisplayableWorkOrder: Identifiable {
 
 // Main Job Scheduler View with Day, Week, and Month views using FSCalendar
 struct JobSchedulerView: View {
+    @EnvironmentObject var deletedItemsManager: DeletedItemsManager
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var authViewModel: AuthViewModel  // Access user role information
+    
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = true // Read dark mode setting
+    
+    let userName: String // Pass the user's name to dynamically set the title
     
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \WorkOrder.date, ascending: true)],
@@ -29,6 +34,9 @@ struct JobSchedulerView: View {
     @State private var calendarScope: FSCalendarScope = .month  // Start with month view
     @State private var workOrderToReschedule: WorkOrder? = nil  // Track work order to reschedule
     @State private var isShowingReschedulePicker = false  // Modal for rescheduling work order
+    @State private var workOrderToDelete: WorkOrder? = nil
+    @State private var isShowingDeleteConfirmation = false
+    @State private var isShowingDeleteSlider = false
     
     var body: some View {
         NavigationView {
@@ -36,11 +44,8 @@ struct JobSchedulerView: View {
                 // Toolbar (only visible for admins)
                 if authViewModel.userRole == "admin" {
                     HStack {
-                        // View Work Orders Button (Icon: Clipboard)
                         Button(action: {
-                            DispatchQueue.main.async {
-                                isPresentingWorkOrderList.toggle()
-                            }
+                            isPresentingWorkOrderList.toggle()
                         }) {
                             Image(systemName: "doc.text.magnifyingglass")
                                 .foregroundColor(.blue)
@@ -53,18 +58,15 @@ struct JobSchedulerView: View {
                         
                         Spacer()
                         
-                        // New Work Order Button (Blue Plus)
                         Button(action: {
-                            DispatchQueue.main.async {
-                                isPresentingNewWorkOrder.toggle()
-                            }
+                            isPresentingNewWorkOrder.toggle()
                         }) {
                             Image(systemName: "plus.circle.fill")
                                 .foregroundColor(.blue)
                                 .font(.title)
                         }
                         .sheet(isPresented: $isPresentingNewWorkOrder) {
-                            NewWorkOrderView(selectedDate: selectedDate) // Pass selected date here
+                            NewWorkOrderView(selectedDate: selectedDate)
                                 .environment(\.managedObjectContext, viewContext)
                         }
                     }
@@ -83,9 +85,11 @@ struct JobSchedulerView: View {
                 CalendarView(
                     selectedDate: $selectedDate,
                     calendarScope: $calendarScope,
-                    workOrders: displayedWorkOrders.map { $0.workOrder },  // Pass only visible work orders
-                    isPresentingNewWorkOrder: $isPresentingNewWorkOrder
+                    workOrders: displayedWorkOrders.map { $0.workOrder },
+                    isPresentingNewWorkOrder: $isPresentingNewWorkOrder,
+                    isDarkMode: $isDarkMode // Pass the dark mode state
                 )
+                .background(isDarkMode ? Color.black : Color.white) // Dynamic calendar background
                 .frame(height: calendarScope == .month ? 400 : 300)
                 .padding(.top, 20)
                 
@@ -102,42 +106,26 @@ struct JobSchedulerView: View {
                                 NavigationLink(destination: WorkOrderDetailView(workOrder: displayableOrder.workOrder)) {
                                     VStack(alignment: .leading) {
                                         HStack(spacing: 5) {
-                                            // Customer Name
-                                            if let customerName = displayableOrder.workOrder.customer?.name {
-                                                Text(customerName)
-                                                    .font(.headline)
-                                                    .foregroundColor(.white)
-                                            } else {
-                                                Text("Unknown")
-                                                    .font(.headline)
-                                                    .foregroundColor(.white)
-                                            }
+                                            Text(displayableOrder.workOrder.customer?.name ?? "Unknown")
+                                                .font(.headline)
+                                                .foregroundColor(isDarkMode ? .white : .black) // Dynamic text color
                                             
-                                            // Work order number directly beside the name
                                             Text("#\(displayableOrder.workOrder.workOrderNumber)")
                                                 .font(.subheadline)
                                                 .fontWeight(.bold)
-                                                .foregroundColor(.white)
+                                                .foregroundColor(isDarkMode ? .white : .black)
                                         }
-                                        
-                                        // Work order category (task)
                                         Text(displayableOrder.workOrder.category ?? "No Category")
                                             .font(.subheadline)
                                             .foregroundColor(.gray)
-                                        
-                                        // Status with color based on status value
                                         Text("Status: \(displayableOrder.workOrder.status ?? "No Status")")
                                             .font(.caption)
                                             .foregroundColor(statusColor(for: displayableOrder.workOrder.status))
-                                        
-                                        // Arrival Time
                                         if let workOrderTime = displayableOrder.workOrder.time {
                                             Text("Arrival Time: \(formattedTime(workOrderTime))")
                                                 .font(.caption)
                                                 .foregroundColor(.gray)
                                         }
-                                        
-                                        // Display the tradesmen (from Core Data relationship)
                                         if let tradesmenSet = displayableOrder.workOrder.tradesmen as? Set<Tradesmen>, !tradesmenSet.isEmpty {
                                             let tradesmenNames = tradesmenSet.compactMap { $0.name }.joined(separator: ", ")
                                             Text("Technician(s): \(tradesmenNames)")
@@ -146,8 +134,6 @@ struct JobSchedulerView: View {
                                         }
                                     }
                                 }
-                                
-                                // Reschedule Button (Only for admin)
                                 if authViewModel.userRole == "admin" {
                                     Button(action: {
                                         workOrderToReschedule = displayableOrder.workOrder
@@ -167,55 +153,80 @@ struct JobSchedulerView: View {
                                             )
                                             .cornerRadius(8)
                                             .shadow(radius: 5)
-                                            .scaleEffect(isShowingReschedulePicker ? 1.1 : 1.0)
-                                            .animation(.easeInOut, value: isShowingReschedulePicker)
                                     }
                                     .buttonStyle(PlainButtonStyle())
                                     .padding(.leading, 10)
                                 }
                             }
-                            .swipeActions(edge: .trailing) {
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) { // Prevent full swipe
                                 if authViewModel.userRole == "admin" {
-                                    // Delete Button (Only for admin)
-                                    Button(role: .destructive) {
-                                        deleteWorkOrder(at: displayableOrder.workOrder)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                    
-                                    // Send Message Button
+                                    // Message Button
                                     Button {
                                         sendConfirmationMessage(to: displayableOrder.workOrder)
                                     } label: {
                                         Label("Message", systemImage: "message.fill")
                                     }
-                                    .tint(.blue)
+                                    .tint(.green) // Message button color
+                                    
+                                    // Delete Button
+                                    Button(role: .destructive) {
+                                        confirmDelete(workOrder: displayableOrder.workOrder)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                    .tint(.red) // Delete button color
                                 }
                             }
                         }
                     }
                     .listStyle(PlainListStyle())
                 }
+                
+                // Add the delete slider
+                if isShowingDeleteSlider {
+                    VStack {
+                        Text("Slide to confirm deletion")
+                            .font(.headline)
+                            .foregroundColor(.red)
+                        
+                        ConfirmationSlider(action: finalizeDelete)
+                            .padding()
+                    }
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
+                    .padding()
+                }
             }
-            .background(Color.black.edgesIgnoringSafeArea(.all))
+            .navigationTitle("\(userName)'s Schedule") // Dynamically display the user's name
+            .background(isDarkMode ? Color.black.edgesIgnoringSafeArea(.all) : Color.white.edgesIgnoringSafeArea(.all)) // Dynamic view background
             .sheet(isPresented: $isShowingReschedulePicker) {
                 if let workOrder = workOrderToReschedule {
                     RescheduleView(workOrder: workOrder, isShowing: $isShowingReschedulePicker)
                         .environment(\.managedObjectContext, viewContext)
                 }
             }
+            .alert(isPresented: $isShowingDeleteConfirmation) {
+                Alert(
+                    title: Text("Confirm Deletion"),
+                    message: Text("Are you sure you want to delete this work order? This action cannot be undone."),
+                    primaryButton: .destructive(Text("Delete")) {
+                        isShowingDeleteSlider = true // Show slider after confirmation
+                    },
+                    secondaryButton: .cancel {
+                        workOrderToDelete = nil // Reset state
+                    }
+                )
+            }
         }
     }
     
-    // MARK: - Displayed Work Orders
+    // MARK: - Helper Methods
     private var displayedWorkOrders: [DisplayableWorkOrder] {
-        // Make all work orders visible without hiding any
         return workOrders.map { workOrder in
             DisplayableWorkOrder(workOrder: workOrder, isHidden: false)
         }
     }
-
-    // MARK: - Work Orders for Selected Date
+    
     private var workOrdersForSelectedDate: [DisplayableWorkOrder] {
         return displayedWorkOrders.filter { displayableOrder in
             if let workOrderDate = displayableOrder.workOrder.date {
@@ -224,8 +235,7 @@ struct JobSchedulerView: View {
             return false
         }
     }
-
-    // MARK: - Helper Functions
+    
     private func deleteWorkOrder(at workOrder: WorkOrder) {
         viewContext.delete(workOrder)
         do {
@@ -234,40 +244,33 @@ struct JobSchedulerView: View {
             print("Error deleting work order: \(error.localizedDescription)")
         }
     }
-
+    
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: date)
     }
-
+    
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
-
+    
     private func sendConfirmationMessage(to workOrder: WorkOrder) {
-        guard let customerPhone = workOrder.customer?.phoneNumber else {
-            print("Customer phone number not available")
-            return
-        }
-
+        guard let customerPhone = workOrder.customer?.phoneNumber else { return }
+        
         let firstName = workOrder.customer?.name?.split(separator: " ").first ?? "Customer"
         let workOrderDate = formattedDate(workOrder.date ?? Date())
         let workOrderTime = formattedTime(workOrder.time ?? Date())
-
-        let messageBody = """
-        Hello \(firstName), your appointment for \(workOrder.category ?? "service") is scheduled on \(workOrderDate) at \(workOrderTime).
-        """
-
+        
+        let messageBody = "Hello \(firstName), your appointment for \(workOrder.category ?? "service") is scheduled on \(workOrderDate) at \(workOrderTime)."
+        
         if let url = URL(string: "sms:\(customerPhone)&body=\(messageBody.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")") {
             UIApplication.shared.open(url)
-        } else {
-            print("Failed to create message URL")
         }
     }
-
+    
     private func statusColor(for status: String?) -> Color {
         switch status?.lowercased() {
         case "open": return .red
@@ -276,36 +279,73 @@ struct JobSchedulerView: View {
         default: return .gray
         }
     }
+    private func confirmDelete(workOrder: WorkOrder) {
+        workOrderToDelete = workOrder
+        isShowingDeleteConfirmation = true
+    }
+    
+    private func finalizeDelete() {
+        guard let workOrder = workOrderToDelete else { return }
+        
+        // Add the deleted work order to the recently deleted items
+        let deletedItem = DeletedItem(
+            id: UUID(), // Generate a new UUID
+            type: .workOrder,
+            description: "Work Order #\(workOrder.workOrderNumber)",
+            originalDate: workOrder.date,
+            originalStatus: workOrder.status,
+            originalCustomerName: workOrder.customer?.name,
+            originalCategory: workOrder.category,
+            originalTradesmen: (workOrder.tradesmen as? Set<Tradesmen>)?.compactMap { $0.name }
+        )
+        deletedItemsManager.addDeletedItem(deletedItem)
+        
+        // Delete the work order from Core Data
+        viewContext.delete(workOrder)
+        do {
+            try viewContext.save()
+            workOrderToDelete = nil // Reset state
+        } catch {
+            print("Error deleting work order: \(error.localizedDescription)")
+        }
+        isShowingDeleteSlider = false
+    }
 }
 
     // Coordinator to manage FSCalendar's Delegate and DataSource
-    class Coordinator: NSObject, FSCalendarDelegate, FSCalendarDataSource, FSCalendarDelegateAppearance {
-        var parent: CalendarView
+class Coordinator: NSObject, FSCalendarDelegate, FSCalendarDataSource, FSCalendarDelegateAppearance {
+    var parent: CalendarView
 
-        init(_ parent: CalendarView) {
-            self.parent = parent
-        }
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = true
 
-        // When a date is selected, update the selectedDate binding and show the modal
-        func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
-            parent.selectedDate = date
-        }
-
-        // Add event markers (dots) for dates with work orders
-        func calendar(_ calendar: FSCalendar, numberOfEventsFor date: Date) -> Int {
-            let workOrdersForDate = parent.workOrders.filter {
-                // Match work orders for the specific date
-                Calendar.current.isDate($0.date ?? Date(), inSameDayAs: date)
-            }
-            return workOrdersForDate.isEmpty ? 0 : 1  // Display a dot if there's a work order
-        }
-
-        // Customize the appearance of event dots for specific dates (set to orange)
-        func calendar(_ calendar: FSCalendar, appearance: FSCalendarAppearance, eventDefaultColorsFor date: Date) -> [UIColor]? {
-            let workOrdersForDate = parent.workOrders.filter {
-                Calendar.current.isDate($0.date ?? Date(), inSameDayAs: date)
-            }
-            return workOrdersForDate.isEmpty ? nil : [.orange] // Show orange dots for work orders
-        }
+    init(_ parent: CalendarView) {
+        self.parent = parent
     }
+
+    // When a date is selected, update the selectedDate binding and show the modal
+    func calendar(_ calendar: FSCalendar, didSelect date: Date, at monthPosition: FSCalendarMonthPosition) {
+        parent.selectedDate = date
+    }
+
+    // Add event markers (dots) for dates with work orders
+    func calendar(_ calendar: FSCalendar, numberOfEventsFor date: Date) -> Int {
+        let workOrdersForDate = parent.workOrders.filter {
+            Calendar.current.isDate($0.date ?? Date(), inSameDayAs: date)
+        }
+        return workOrdersForDate.isEmpty ? 0 : 1  // Display a dot if there's a work order
+    }
+
+    // Customize the appearance of text for dates
+    func calendar(_ calendar: FSCalendar, appearance: FSCalendarAppearance, titleDefaultColorFor date: Date) -> UIColor? {
+        return isDarkMode ? .white : .black // Adjust date text color dynamically
+    }
+
+    // Customize the appearance of event dots for specific dates (set to orange)
+    func calendar(_ calendar: FSCalendar, appearance: FSCalendarAppearance, eventDefaultColorsFor date: Date) -> [UIColor]? {
+        let workOrdersForDate = parent.workOrders.filter {
+            Calendar.current.isDate($0.date ?? Date(), inSameDayAs: date)
+        }
+        return workOrdersForDate.isEmpty ? nil : [.orange] // Show orange dots for work orders
+    }
+}
 

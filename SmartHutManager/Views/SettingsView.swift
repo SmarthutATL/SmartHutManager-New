@@ -11,10 +11,6 @@ struct SettingsView: View {
         predicate: NSPredicate(format: "name == %@", "Darius Ogletree")
     ) var adminTradesmen: FetchedResults<Tradesmen>
 
-    @State private var recentlyDeletedItems: [DeletedItem] = [
-        DeletedItem(type: .invoice, description: "Invoice #1234"),
-        DeletedItem(type: .workOrder, description: "Work Order #5678")
-    ]
     @State private var selectedLogo: UIImage? = nil
     @State private var selectedPlan: String = "Basic"
     @State private var isShowingImagePicker = false
@@ -24,7 +20,9 @@ struct SettingsView: View {
     @State private var authenticationFailed = false
 
     @EnvironmentObject var authViewModel: AuthViewModel
+    @EnvironmentObject var deletedItemsManager: DeletedItemsManager // Access shared manager
     @Environment(\.managedObjectContext) private var viewContext
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = true // Track dark mode state
 
     var body: some View {
         NavigationView {
@@ -33,8 +31,8 @@ struct SettingsView: View {
                     // General Settings Section
                     cardView {
                         NavigationLink(destination: GeneralSettingsView()) {
-                            SettingsItem(icon: "gearshape.fill", title: "General Settings", color: .yellow)
-                                .foregroundColor(.white)
+                            SettingsItem(icon: "gearshape.fill", title: "General", color: .yellow)
+                                .foregroundColor(isDarkMode ? .white : .black) // Adjust text color
                         }
                     }
 
@@ -42,14 +40,16 @@ struct SettingsView: View {
                     cardView {
                         NavigationLink(destination: TradesmanAccountSection(tradesman: adminTradesmen.first)) {
                             SettingsItem(icon: "person.crop.circle.fill", title: "Account Details", color: .blue)
-                                .foregroundColor(.white)
+                                .foregroundColor(isDarkMode ? .white : .black)
                         }
                     }
 
                     // Recently Deleted Section
                     cardView {
-                        SettingsItem(icon: "trash.fill", title: "Recently Deleted Items", color: .red)
-                            .foregroundColor(.white)
+                        NavigationLink(destination: RecentlyDeletedItemsView()) {
+                            SettingsItem(icon: "trash.fill", title: "Recently Deleted Items", color: .red)
+                                .foregroundColor(isDarkMode ? .white : .black)
+                        }
                     }
 
                     // Subscription Plan Section
@@ -63,7 +63,7 @@ struct SettingsView: View {
                                     .frame(width: 32, height: 32)
                                 Text("Subscription Plan")
                                     .font(.body)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(isDarkMode ? .white : .black)
                                 Spacer()
                                 Text(selectedPlan)
                                     .foregroundColor(.gray)
@@ -76,7 +76,7 @@ struct SettingsView: View {
                     // Customize Logo Section
                     cardView {
                         SettingsItem(icon: "photo.fill", title: "Customize Logo", color: .purple)
-                            .foregroundColor(.white)
+                            .foregroundColor(isDarkMode ? .white : .black)
                             .onTapGesture {
                                 isShowingImagePicker.toggle()
                             }
@@ -89,7 +89,7 @@ struct SettingsView: View {
                         }) {
                             HStack {
                                 SettingsItem(icon: "doc.plaintext", title: "Manage Invoices", color: .blue)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(isDarkMode ? .white : .black)
                                 Spacer()
                             }
                         }
@@ -106,7 +106,7 @@ struct SettingsView: View {
                         }) {
                             HStack {
                                 SettingsItem(icon: "person.2.fill", title: "Manage Technicians", color: .blue)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(isDarkMode ? .white : .black)
                                 Spacer()
                             }
                         }
@@ -120,7 +120,7 @@ struct SettingsView: View {
                     cardView {
                         NavigationLink(destination: TechnicianPerformanceView()) {
                             SettingsItem(icon: "chart.bar.fill", title: "Technician Performance", color: .orange)
-                                .foregroundColor(.white)
+                                .foregroundColor(isDarkMode ? .white : .black)
                         }
                     }
 
@@ -128,7 +128,7 @@ struct SettingsView: View {
                     cardView {
                         NavigationLink(destination: ManageJobCategoriesView()) {
                             SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
-                                .foregroundColor(.white)
+                                .foregroundColor(isDarkMode ? .white : .black)
                         }
                     }
 
@@ -136,7 +136,7 @@ struct SettingsView: View {
                     cardView {
                         NavigationLink(destination: Text("Manage Payment Methods")) {
                             SettingsItem(icon: "creditcard.fill", title: "Manage Payment Methods", color: .green)
-                                .foregroundColor(.white)
+                                .foregroundColor(isDarkMode ? .white : .black)
                         }
                     }
 
@@ -144,7 +144,7 @@ struct SettingsView: View {
                     cardView {
                         NavigationLink(destination: NotificationSettingsView()) {
                             SettingsItem(icon: "bell.fill", title: "Notification Settings", color: .blue)
-                                .foregroundColor(.white)
+                                .foregroundColor(isDarkMode ? .white : .black)
                         }
                     }
 

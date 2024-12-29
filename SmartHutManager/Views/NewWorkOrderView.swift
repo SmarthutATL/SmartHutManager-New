@@ -22,6 +22,7 @@ struct NewWorkOrderView: View {
     @State private var newTaskDescription = ""
     @State private var isShowingIncompleteAlert = false
     @State private var alertMessage = ""
+    @State private var isSaving = false
     
     var selectedDate: Date // Passed selected date from JobSchedulerView
     @State private var serviceDate: Date // Initialize serviceDate with selectedDate
@@ -219,16 +220,21 @@ struct NewWorkOrderView: View {
                         }
                     }) {
                         HStack {
-                            Image(systemName: "checkmark.circle")
-                            Text("Save Work Order")
+                            if isSaving {
+                                ProgressView()
+                                Text("Saving...")
+                            } else {
+                                Image(systemName: "checkmark.circle")
+                                Text("Save Work Order")
+                            }
                         }
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(validateForm() ? Color.green : Color.gray)
+                        .background(isSaving || !validateForm() ? Color.gray : Color.green)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     }
-                    .disabled(!validateForm())
+                    .disabled(isSaving || !validateForm())
                     .alert(isPresented: $isShowingIncompleteAlert) {
                         Alert(
                             title: Text("Incomplete Form"),
@@ -313,51 +319,64 @@ struct NewWorkOrderView: View {
     
     // Add the work order to Core Data
     private func addWorkOrder() {
-        let fetchRequest: NSFetchRequest<WorkOrder> = NSFetchRequest(entityName: "WorkOrder")
-        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \WorkOrder.workOrderNumber, ascending: false)]
-        fetchRequest.fetchLimit = 1
-
-        do {
-            let highestWorkOrder = try viewContext.fetch(fetchRequest).first
-            let nextWorkOrderNumber = (highestWorkOrder?.workOrderNumber ?? 0) + 1
-
-            let newWorkOrder = WorkOrder(context: viewContext)
-            newWorkOrder.category = selectedCategory?.name
-            newWorkOrder.job = selectedJob // Assuming `job` is a relationship in your `WorkOrder` entity.
-            newWorkOrder.workOrderDescription = workOrderDescription
-            newWorkOrder.status = status
-            newWorkOrder.date = serviceDate
-            newWorkOrder.customer = selectedCustomer
-            newWorkOrder.time = serviceTime
-            newWorkOrder.notes = notes
-            newWorkOrder.isCallback = isCallback
-            newWorkOrder.workOrderNumber = Int16(nextWorkOrderNumber)
-
-            // Assign tradesmen
-            for tradesman in selectedTradesmen {
-                newWorkOrder.addToTradesmen(tradesman)
-                tradesman.addToWorkOrders(newWorkOrder)
+        isSaving = true // Start showing the spinner
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let fetchRequest: NSFetchRequest<WorkOrder> = NSFetchRequest(entityName: "WorkOrder")
+            fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \WorkOrder.workOrderNumber, ascending: false)]
+            fetchRequest.fetchLimit = 1
+            
+            do {
+                let highestWorkOrder = try viewContext.fetch(fetchRequest).first
+                let nextWorkOrderNumber = (highestWorkOrder?.workOrderNumber ?? 0) + 1
+                
+                let newWorkOrder = WorkOrder(context: viewContext)
+                newWorkOrder.category = selectedCategory?.name
+                newWorkOrder.job = selectedJob
+                newWorkOrder.workOrderDescription = workOrderDescription
+                newWorkOrder.status = status
+                newWorkOrder.date = serviceDate
+                newWorkOrder.customer = selectedCustomer
+                newWorkOrder.time = serviceTime
+                newWorkOrder.notes = notes
+                newWorkOrder.isCallback = isCallback
+                newWorkOrder.workOrderNumber = Int16(nextWorkOrderNumber)
+                
+                // Assign tradesmen
+                for tradesman in selectedTradesmen {
+                    newWorkOrder.addToTradesmen(tradesman)
+                    tradesman.addToWorkOrders(newWorkOrder)
+                }
+                
+                // Assign tasks
+                for task in tasks {
+                    let newTask = Task(context: viewContext)
+                    newTask.name = task.name
+                    newTask.taskDescription = task.description
+                    newTask.isComplete = task.isComplete
+                    newWorkOrder.addToTasks(newTask)
+                }
+                
+                try viewContext.save()
+                
+                // Recalculate points
+                GamificationManager.shared.recalculatePoints(context: viewContext) {
+                    DispatchQueue.main.async {
+                        isSaving = false // Stop showing the spinner
+                        presentationMode.wrappedValue.dismiss() // Close the view
+                    }
+                }
+                
+                DispatchQueue.main.async {
+                    isSaving = false // Stop showing the spinner
+                    presentationMode.wrappedValue.dismiss()
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    isSaving = false // Stop showing the spinner
+                }
+                print("Error saving work order: \(error.localizedDescription)")
             }
-
-            // Assign tasks
-            for task in tasks {
-                let newTask = Task(context: viewContext)
-                newTask.name = task.name
-                newTask.taskDescription = task.description
-                newTask.isComplete = task.isComplete
-                newWorkOrder.addToTasks(newTask)
-            }
-
-            try viewContext.save()
-
-            // Recalculate points
-            GamificationManager.shared.recalculatePoints(context: viewContext) {
-                // Reload leaderboard view after recalculation
-            }
-
-            presentationMode.wrappedValue.dismiss()
-        } catch {
-            print("Error saving work order: \(error.localizedDescription)")
         }
     }
     

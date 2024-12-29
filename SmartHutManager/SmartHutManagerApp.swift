@@ -15,6 +15,7 @@ struct SmartHutManagerApp: App {
     private var iCloudSyncManager: ICloudSyncManager
 
     @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var deletedItemsManager = DeletedItemsManager() // Shared manager
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = true
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true // Appearance preference
@@ -71,7 +72,8 @@ struct SmartHutManagerApp: App {
                 } else {
                     ContentView()
                         .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                        .environmentObject(authViewModel)
+                        .environmentObject(authViewModel) // Provide AuthViewModel
+                        .environmentObject(deletedItemsManager) // Provide DeletedItemsManager
                 }
             }
             .onAppear {
