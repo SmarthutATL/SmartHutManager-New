@@ -73,13 +73,12 @@ struct SettingsView: View {
                         }
                     }
 
-                    // Customize Logo Section
+                    // Custom Branding Section
                     cardView {
-                        SettingsItem(icon: "photo.fill", title: "Customize Logo", color: .purple)
-                            .foregroundColor(isDarkMode ? .white : .black)
-                            .onTapGesture {
-                                isShowingImagePicker.toggle()
-                            }
+                        NavigationLink(destination: CustomBrandingView()) {
+                            SettingsItem(icon: "paintbrush.fill", title: "Custom Branding", color: .purple)
+                                .foregroundColor(isDarkMode ? .white : .black)
+                        }
                     }
 
                     // Invoices Section (Face ID Authentication)
