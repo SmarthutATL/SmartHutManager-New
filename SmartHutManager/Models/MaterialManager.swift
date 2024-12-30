@@ -18,13 +18,13 @@ struct Material: Identifiable, Codable {
     var price: Double
     var quantity: Int
     
-    // Custom initializer to handle missing `quantity` during decoding
-    init(id: UUID = UUID(), name: String, price: Double, quantity: Int = 1) {
+    init(id: UUID = UUID(), name: String = "", price: Double = 1.0, quantity: Int = 1) {
         self.id = id
         self.name = name
-        self.price = price
-        self.quantity = quantity
+        self.price = max(0.01, price) // Default to a minimum valid price
+        self.quantity = max(1, quantity) // Default to a minimum valid quantity
     }
+
     
     // Custom decoding to provide a default quantity if missing
     init(from decoder: Decoder) throws {

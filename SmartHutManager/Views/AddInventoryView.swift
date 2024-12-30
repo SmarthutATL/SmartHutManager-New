@@ -1,6 +1,8 @@
 import SwiftUI
+import CoreData
 
 struct AddInventoryView: View {
+    let context: NSManagedObjectContext
     var body: some View {
         VStack {
             Text("Add Inventory")

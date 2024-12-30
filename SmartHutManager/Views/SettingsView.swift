@@ -4,13 +4,19 @@ import CoreData
 import FirebaseAuth
 import FirebaseFirestore
 
+
+enum AuthenticationPurpose {
+    case manageInvoices
+    case manageTechnicians
+}
+
 struct SettingsView: View {
     @FetchRequest(
         entity: Tradesmen.entity(),
         sortDescriptors: [],
         predicate: NSPredicate(format: "name == %@", "Darius Ogletree")
     ) var adminTradesmen: FetchedResults<Tradesmen>
-
+    
     @State private var selectedLogo: UIImage? = nil
     @State private var selectedPlan: String = "Basic"
     @State private var isShowingImagePicker = false
@@ -19,146 +25,54 @@ struct SettingsView: View {
     @State private var isShowingSubscriptionPlanView = false
     @State private var authenticationFailed = false
     @State private var goldShineOffset: CGFloat = -250
-
+    
     @EnvironmentObject var authViewModel: AuthViewModel
-    @EnvironmentObject var deletedItemsManager: DeletedItemsManager // Access shared manager
+    @EnvironmentObject var deletedItemsManager: DeletedItemsManager
     @Environment(\.managedObjectContext) private var viewContext
-    @AppStorage("isDarkMode") private var isDarkMode: Bool = true // Track dark mode state
-
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = true
+    
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
                     // General Settings Section
-                    cardView {
-                        NavigationLink(destination: GeneralSettingsView()) {
-                            SettingsItem(icon: "gearshape.fill", title: "General", color: .yellow)
-                                .foregroundColor(isDarkMode ? .white : .black) // Adjust text color
-                        }
-                    }
-
-                    // Tradesman Account Section
-                    cardView {
-                        NavigationLink(destination: TradesmanAccountSection(tradesman: adminTradesmen.first)) {
-                            SettingsItem(icon: "person.crop.circle.fill", title: "Account Details", color: .blue)
-                                .foregroundColor(isDarkMode ? .white : .black)
-                        }
-                    }
-
-                    // Recently Deleted Section
-                    cardView {
-                        NavigationLink(destination: RecentlyDeletedItemsView()) {
-                            SettingsItem(icon: "trash.fill", title: "Recently Deleted Items", color: .red)
-                                .foregroundColor(isDarkMode ? .white : .black)
-                        }
-                    }
-
-                    // Subscription Plan Section
-                    cardView(isGold: true) {
-                        Button(action: {
-                            isShowingSubscriptionPlanView.toggle()
-                        }) {
-                            HStack {
-                                Image(systemName: "creditcard.fill")
-                                    .foregroundColor(.green)
-                                    .frame(width: 32, height: 32)
-                                Text("Subscription Plan")
-                                    .font(.body)
-                                    .foregroundColor(isDarkMode ? .white : .black)
-                                Spacer()
-                                Text(selectedPlan)
-                                    .foregroundColor(.black)
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    }
-
-                    // Custom Branding Section
-                    cardView(isGold: true) {
-                        NavigationLink(destination: CustomBrandingView()) {
-                            SettingsItem(icon: "paintbrush.fill", title: "Custom Branding", color: .purple)
-                                .foregroundColor(isDarkMode ? .white : .black)
-                        }
-                    }
+                    generalSettingsSection()
                     
-                    cardView {
-                                         NavigationLink(destination: InventoryManagementView()) {
-                                             SettingsItem(icon: "archivebox.fill", title: "Manage Inventory", color: .green)
-                                                 .foregroundColor(isDarkMode ? .white : .black)
-                                         }
-                                     }
-
+                    // Tradesman Account Section
+                    tradesmanAccountSection()
+                    
+                    // Recently Deleted Section
+                    recentlyDeletedSection()
+                    
+                    // Subscription Plan Section
+                    subscriptionPlanSection()
+                    
+                    // Custom Branding Section
+                    customBrandingSection()
+                    
+                    // Inventory Management Section
+                    inventoryManagementSection()
+                    
                     // Invoices Section (Face ID Authentication)
-                    cardView {
-                        Button(action: {
-                            authenticateUser(for: .manageInvoices)
-                        }) {
-                            HStack {
-                                SettingsItem(icon: "doc.plaintext", title: "Manage Invoices", color: .blue)
-                                    .foregroundColor(isDarkMode ? .white : .black)
-                                Spacer()
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                    .sheet(isPresented: $isShowingInvoicesList) {
-                        InvoiceListView(viewContext: viewContext)
-                    }
-
+                    invoicesSection()
+                    
                     // Technician Management Section (Face ID Authentication)
-                    cardView(isGold: true) {
-                        Button(action: {
-                            authenticateUser(for: .manageTechnicians)
-                        }) {
-                            HStack {
-                                SettingsItem(icon: "person.2.fill", title: "Manage Technicians", color: .blue)
-                                    .foregroundColor(isDarkMode ? .white : .black)
-                                Spacer()
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                    .sheet(isPresented: $isShowingTradesmenList) {
-                        TradesmenListView()
-                    }
-
+                    technicianManagementSection()
+                    
                     // Technician Performance Section
-                    cardView(isGold: true) {
-                        NavigationLink(destination: TechnicianPerformanceView()) {
-                            SettingsItem(icon: "chart.bar.fill", title: "Technician Performance", color: .orange)
-                                .foregroundColor(isDarkMode ? .white : .black)
-                        }
-                    }
-
+                    technicianPerformanceSection()
+                    
                     // Manage Job Categories Section
-                    cardView {
-                        NavigationLink(destination: ManageJobCategoriesView()) {
-                            SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
-                                .foregroundColor(isDarkMode ? .white : .black)
-                        }
-                    }
-
+                    manageJobCategoriesSection()
+                    
                     // Manage Payment Methods Section
-                    cardView {
-                        NavigationLink(destination: ManagePaymentsView()) {
-                            SettingsItem(icon: "creditcard.fill", title: "Manage Payment Methods", color: .green)
-                                .foregroundColor(isDarkMode ? .white : .black)
-                        }
-                    }
+                    managePaymentMethodsSection()
                     
                     // Notification Settings Section
-                    cardView {
-                        NavigationLink(destination: NotificationSettingsView()) {
-                            SettingsItem(icon: "bell.fill", title: "Notification Settings", color: .blue)
-                                .foregroundColor(isDarkMode ? .white : .black)
-                        }
-                    }
-
+                    notificationSettingsSection()
+                    
                     // Sign Out Section
-                    cardView {
-                        signOutSection()
-                    }
+                    signOutSection()
                 }
                 .padding(.horizontal, 16)
                 .navigationTitle("Settings")
@@ -178,21 +92,158 @@ struct SettingsView: View {
             .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
         }
     }
-
-    // MARK: - Face ID / Passcode Authentication
-    enum AuthenticationPurpose {
-        case manageTechnicians
-        case manageInvoices
+    
+    // MARK: - Settings Sections
+    private func generalSettingsSection() -> some View {
+        cardView {
+            NavigationLink(destination: GeneralSettingsView()) {
+                SettingsItem(icon: "gearshape.fill", title: "General", color: .yellow)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
     }
-
+    
+    private func tradesmanAccountSection() -> some View {
+        cardView {
+            NavigationLink(destination: TradesmanAccountSection(tradesman: adminTradesmen.first)) {
+                SettingsItem(icon: "person.crop.circle.fill", title: "Account Details", color: .blue)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func recentlyDeletedSection() -> some View {
+        cardView {
+            NavigationLink(destination: RecentlyDeletedItemsView()) {
+                SettingsItem(icon: "trash.fill", title: "Recently Deleted Items", color: .red)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func subscriptionPlanSection() -> some View {
+        cardView(isGold: true) {
+            Button(action: {
+                isShowingSubscriptionPlanView.toggle()
+            }) {
+                HStack {
+                    SettingsItem(icon: "creditcard.fill", title: "Subscription Plan", color: .green)
+                        .foregroundColor(isDarkMode ? .white : .black)
+                }
+            }
+        }
+    }
+    
+    private func customBrandingSection() -> some View {
+        cardView(isGold: true) {
+            NavigationLink(destination: CustomBrandingView()) {
+                SettingsItem(icon: "paintbrush.fill", title: "Custom Branding", color: .purple)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func inventoryManagementSection() -> some View {
+        cardView {
+            NavigationLink(destination: InventoryManagementView()) {
+                SettingsItem(icon: "archivebox.fill", title: "Manage Inventory", color: .green)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func invoicesSection() -> some View {
+        cardView {
+            Button(action: {
+                authenticateUser(for: .manageInvoices)
+            }) {
+                SettingsItem(icon: "doc.plaintext", title: "Manage Invoices", color: .blue)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+        .sheet(isPresented: $isShowingInvoicesList) {
+            InvoiceListView(viewContext: viewContext)
+        }
+    }
+    
+    private func technicianManagementSection() -> some View {
+        cardView(isGold: true) {
+            Button(action: {
+                authenticateUser(for: .manageTechnicians)
+            }) {
+                SettingsItem(icon: "person.2.fill", title: "Manage Technicians", color: .blue)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+        .sheet(isPresented: $isShowingTradesmenList) {
+            TradesmenListView()
+        }
+    }
+    
+    private func technicianPerformanceSection() -> some View {
+        cardView(isGold: true) {
+            NavigationLink(destination: TechnicianPerformanceView()) {
+                SettingsItem(icon: "chart.bar.fill", title: "Technician Performance", color: .orange)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func manageJobCategoriesSection() -> some View {
+        cardView {
+            NavigationLink(destination: ManageJobCategoriesView()) {
+                SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func managePaymentMethodsSection() -> some View {
+        cardView {
+            NavigationLink(destination: ManagePaymentsView()) {
+                SettingsItem(icon: "creditcard.fill", title: "Manage Payment Methods", color: .green)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func notificationSettingsSection() -> some View {
+        cardView {
+            NavigationLink(destination: NotificationSettingsView()) {
+                SettingsItem(icon: "bell.fill", title: "Notification Settings", color: .blue)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func signOutSection() -> some View {
+        cardView {
+            Button(action: {
+                authViewModel.signOut()
+            }) {
+                HStack {
+                    Spacer()
+                    Text("Sign Out")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                .padding()
+                .background(Color.red)
+                .cornerRadius(8)
+            }
+        }
+    }
+    
+    // MARK: - Supporting Methods
     private func authenticateUser(for purpose: AuthenticationPurpose) {
         let context = LAContext()
         var error: NSError?
-
+        
         if context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) {
             let reason = "Authenticate to \(purpose == .manageTechnicians ? "manage technicians" : "manage invoices")"
-
-            context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, authenticationError in
+            
+            context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) { success, _ in
                 DispatchQueue.main.async {
                     if success {
                         switch purpose {
@@ -210,29 +261,64 @@ struct SettingsView: View {
             print("Face ID / Passcode not available.")
         }
     }
+    
+    private func fetchCurrentPlan() {
+        guard let email = authViewModel.currentUserEmail else {
+            print("Error: No authenticated user email.")
+            return
+        }
+        
+        let db = Firestore.firestore()
+        db.collection("users").whereField("email", isEqualTo: email).getDocuments { (querySnapshot, error) in
+            if let error = error {
+                print("Error fetching user document: \(error.localizedDescription)")
+                return
+            }
 
-    // Reusable card-style container
+            if let document = querySnapshot?.documents.first {
+                if let plan = document.data()["subscriptionPlan"] as? String {
+                    DispatchQueue.main.async {
+                        self.selectedPlan = plan
+                    }
+                } else {
+                    print("Subscription plan not found.")
+                }
+            } else {
+                print("User document not found.")
+            }
+        }
+    }
+    
+    private func updatePlanInFirebase(_ plan: String) {
+        guard let email = authViewModel.currentUserEmail else { return }
+        let db = Firestore.firestore()
+        db.collection("users").document(email).updateData(["subscriptionPlan": plan])
+    }
+    
     private func cardView<Content: View>(
         isGold: Bool = false,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         ZStack {
-            // Background for normal or gold cards
-            VStack(alignment: .leading, spacing: 12) {
+            VStack {
                 content()
             }
             .padding()
             .background(
-                LinearGradient(
-                    gradient: isGold
-                        ? Gradient(colors: [Color.yellow.opacity(0.8), Color.orange.opacity(0.8)])
-                        : Gradient(colors: [Color(.secondarySystemBackground), Color(.secondarySystemBackground)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                Group {
+                    if isGold {
+                        LinearGradient(
+                            colors: [Color.yellow.opacity(0.8), Color.orange.opacity(0.8)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    } else {
+                        Color(.secondarySystemBackground)
+                    }
+                }
             )
             .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             
             // Shine effect for gold cards
             if isGold {
@@ -244,16 +330,16 @@ struct SettingsView: View {
                             endPoint: .trailing
                         )
                     )
-                    .frame(width: 400, height: 60) // Adjust width to match card size
-                    .offset(x: goldShineOffset) // Dynamic offset for shine
+                    .frame(width: 400, height: 60)
+                    .offset(x: goldShineOffset) // Use `goldShineOffset` for animation
                     .mask(
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack {
                             content()
                         }
                         .padding()
                         .background(
                             LinearGradient(
-                                gradient: Gradient(colors: [Color.yellow.opacity(0.8), Color.orange.opacity(0.8)]),
+                                colors: [Color.yellow.opacity(0.8), Color.orange.opacity(0.8)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -261,72 +347,20 @@ struct SettingsView: View {
                         .cornerRadius(12)
                     )
             }
-            
-            // Lock Icon Overlay for Gold Cards
-            if isGold {
-                VStack {
-                    HStack {
-                        Spacer()
-                            .frame(maxWidth: 170) // Add padding to move the lock icon left
-                        Image(systemName: "lock.fill")
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
-                            .padding()
-                    }
-                    Spacer()
-                }
-            }
         }
         .onAppear {
             if isGold {
-                startGoldShineAnimation() // Start shine animation for gold cards
+                startShineAnimation() // Start animation for gold cards
             }
         }
     }
-    
-    private func startGoldShineAnimation() {
+
+    private func startShineAnimation() {
         withAnimation(
             Animation.linear(duration: 4.0)
                 .repeatForever(autoreverses: true)
         ) {
-            goldShineOffset = 250 // Adjust for smooth animation across the card
-        }
-    }
-
-    private func fetchCurrentPlan() {
-        guard let email = authViewModel.currentUserEmail else { return }
-        let db = Firestore.firestore()
-        db.collection("users").document(email).getDocument { snapshot, error in
-            if let data = snapshot?.data(), let plan = data["subscriptionPlan"] as? String {
-                DispatchQueue.main.async { self.selectedPlan = plan }
-            }
-        }
-    }
-
-    private func updatePlanInFirebase(_ plan: String) {
-        guard let email = authViewModel.currentUserEmail else { return }
-        let db = Firestore.firestore()
-        db.collection("users").document(email).updateData(["subscriptionPlan": plan])
-    }
-
-    private func signOutSection() -> some View {
-        VStack {
-            Button(action: {
-                authViewModel.signOut()
-            }) {
-                HStack {
-                    Spacer()
-                    Text("Sign Out")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                    Spacer()
-                }
-                .padding()
-                .background(Color.red)
-                .cornerRadius(8)
-            }
+            goldShineOffset = 250 // Adjust the offset to fit the shine movement
         }
     }
 }

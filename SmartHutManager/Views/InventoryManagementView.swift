@@ -2,33 +2,35 @@ import SwiftUI
 import Foundation
 
 struct InventoryManagementView: View {
+    @Environment(\.managedObjectContext) private var viewContext // Access Core Data context
+
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
                 // Inventory Overview Card
                 cardView {
-                    NavigationLink(destination: InventoryOverviewView()) {
+                    NavigationLink(destination: InventoryOverviewView(context: viewContext)) {
                         SettingsItem(icon: "tray.full.fill", title: "Inventory Overview", color: .blue)
                     }
                 }
 
                 // Add Inventory Card
                 cardView {
-                    NavigationLink(destination: AddInventoryView()) {
+                    NavigationLink(destination: AddInventoryView(context: viewContext)) {
                         SettingsItem(icon: "plus.circle.fill", title: "Add Inventory", color: .green)
                     }
                 }
 
                 // Manage Inventory Card
                 cardView {
-                    NavigationLink(destination: ManageInventoryView()) {
+                    NavigationLink(destination: ManageInventoryView(context: viewContext)) {
                         SettingsItem(icon: "slider.horizontal.3", title: "Manage Inventory", color: .orange)
                     }
                 }
 
                 // Reports Card
                 cardView {
-                    NavigationLink(destination: InventoryReportsView()) {
+                    NavigationLink(destination: InventoryReportsView(context: viewContext)) {
                         SettingsItem(icon: "doc.text.fill", title: "Inventory Reports", color: .purple)
                     }
                 }

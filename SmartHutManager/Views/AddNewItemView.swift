@@ -1,11 +1,13 @@
 import SwiftUI
 
 struct AddNewItemView: View {
-    @Binding var newItem: Material
     @Binding var isAddingNewItem: Bool
-    var onSave: () -> Void // Callback when the user saves the item
+    var onSave: (String, Double, Int16) -> Void
 
-    // Validation error messages
+    @State private var name: String = ""
+    @State private var price: String = ""
+    @State private var quantity: String = ""
+
     @State private var nameError: String? = nil
     @State private var priceError: String? = nil
     @State private var quantityError: String? = nil
@@ -14,114 +16,119 @@ struct AddNewItemView: View {
         NavigationStack {
             Form {
                 Section(header: Text("Item Details")) {
-                    // Name Field
+                    // Item Name Field
                     LabeledTextField(
                         title: "Item Name",
                         placeholder: "Enter item name",
-                        text: $newItem.name,
+                        text: $name,
                         errorMessage: $nameError
                     )
-                    .onChange(of: newItem.name) { _ in validateName() }
 
                     // Price Field
-                    LabeledNumericField(
+                    LabeledTextField(
                         title: "Price",
-                        placeholder: "Enter item price",
-                        value: $newItem.price,
+                        placeholder: "Enter item price (e.g., 10.99)",
+                        text: $price,
                         errorMessage: $priceError
                     )
                     .keyboardType(.decimalPad)
-                    .onChange(of: newItem.price) { _ in validatePrice() }
 
                     // Quantity Field
-                    LabeledNumericField(
+                    LabeledTextField(
                         title: "Quantity",
                         placeholder: "Enter item quantity",
-                        value: Binding(
-                            get: { Double(newItem.quantity) },
-                            set: { newItem.quantity = Int($0) }
-                        ),
+                        text: $quantity,
                         errorMessage: $quantityError
                     )
                     .keyboardType(.numberPad)
-                    .onChange(of: newItem.quantity) { _ in validateQuantity() }
                 }
 
                 Section {
-                    HStack {
-                        Button(action: resetForm) {
-                            Text("Reset")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(Color(.secondarySystemBackground))
-                                .foregroundColor(.blue)
-                                .cornerRadius(8)
-                        }
-
-                        Button(action: saveItem) {
-                            Text("Save")
-                                .frame(maxWidth: .infinity)
-                                .padding()
-                                .background(isFormValid() ? Color.blue : Color.gray)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
-                        }
-                        .disabled(!isFormValid())
+                    // Save Button
+                    Button(action: {
+                        print("Save button pressed. Starting validation...")
+                        validateAndSave()
+                    }) {
+                        Text("Save")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(isFormValid() ? Color.blue : Color.gray)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
                     }
+                    .disabled(!isFormValid())
                 }
             }
             .navigationTitle("Add New Item")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        isAddingNewItem = false // Close the sheet
+                        print("Cancel button pressed. Closing AddNewItemView.")
+                        isAddingNewItem = false
                     }
                 }
             }
         }
     }
 
-    // MARK: - Form Validation Methods
-    private func validateName() {
-        nameError = newItem.name.isEmpty ? "Item name cannot be empty" : nil
+    // MARK: - Validation
+    private func validateName() -> String? {
+        if name.trimmingCharacters(in: .whitespaces).isEmpty {
+            print("Validation Error: Name is empty.")
+            return "Item name cannot be empty."
+        }
+        print("Name validated successfully: \(name)")
+        return nil
     }
 
-    private func validatePrice() {
-        priceError = newItem.price <= 0 ? "Price must be greater than 0" : nil
+    private func validatePrice() -> String? {
+        guard let value = Double(price), value > 0 else {
+            print("Validation Error: Invalid price - \(price)")
+            return "Price must be a valid number greater than 0."
+        }
+        print("Price validated successfully: \(value)")
+        return nil
     }
 
-    private func validateQuantity() {
-        quantityError = newItem.quantity <= 0 ? "Quantity must be greater than 0" : nil
+    private func validateQuantity() -> String? {
+        guard let value = Int(quantity), value > 0 else {
+            print("Validation Error: Invalid quantity - \(quantity)")
+            return "Quantity must be a valid number greater than 0."
+        }
+        print("Quantity validated successfully: \(value)")
+        return nil
     }
 
     private func isFormValid() -> Bool {
-        validateName()
-        validatePrice()
-        validateQuantity()
-        return nameError == nil && priceError == nil && quantityError == nil
+        let isValid = validateName() == nil && validatePrice() == nil && validateQuantity() == nil
+        print("Form validation status: \(isValid ? "Valid" : "Invalid")")
+        return isValid
     }
 
-    // MARK: - Save Action
-    private func saveItem() {
-        if isFormValid() {
-            print("Saving Item: \(newItem)")
-            onSave()
-            isAddingNewItem = false // Close the sheet
+    private func validateAndSave() {
+        // Perform validation
+        nameError = validateName()
+        priceError = validatePrice()
+        quantityError = validateQuantity()
+
+        // If all fields are valid, save the item
+        if nameError == nil, priceError == nil, quantityError == nil {
+            print("All fields are valid. Preparing to save item...")
+            guard let priceValue = Double(price), let quantityValue = Int16(quantity) else {
+                print("Failed to convert price or quantity to required types.")
+                return
+            }
+            print("Saving item with details: Name = \(name), Price = \(priceValue), Quantity = \(quantityValue)")
+            onSave(name, priceValue, quantityValue)
+            print("Item saved successfully. Closing AddNewItemView.")
+            isAddingNewItem = false
         } else {
-            print("Form contains errors")
+            print("Validation failed. Errors: NameError = \(nameError ?? "None"), PriceError = \(priceError ?? "None"), QuantityError = \(quantityError ?? "None")")
         }
-    }
-
-    // MARK: - Reset Action
-    private func resetForm() {
-        newItem = Material(name: "", price: 0.0, quantity: 0)
-        nameError = nil
-        priceError = nil
-        quantityError = nil
     }
 }
 
-// MARK: - LabeledTextField for Text Input
+// MARK: - LabeledTextField
 struct LabeledTextField: View {
     var title: String
     var placeholder: String
@@ -135,28 +142,41 @@ struct LabeledTextField: View {
                 .foregroundColor(.secondary)
 
             TextField(placeholder, text: $text)
-                .padding(.horizontal)
-                .frame(height: 44)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(8)
-                .overlay(
-                    VStack {
-                        if let error = errorMessage {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                                .padding(.top, 4)
-                        }
-                    },
-                    alignment: .bottomLeading
+                .onChange(of: text) { newValue in
+                    errorMessage = validateText(newValue)
+                    print("\(title) updated to: \(newValue). Error: \(errorMessage ?? "None")")
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(.secondarySystemBackground))
                 )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(
+                            errorMessage == nil ? Color.clear : Color.red,
+                            lineWidth: 1
+                        )
+                )
+                .disableAutocorrection(true)
+
+            if let error = errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.top, 4)
+            }
         }
         .padding(.vertical, 5)
     }
+
+    private func validateText(_ text: String) -> String? {
+        return text.trimmingCharacters(in: .whitespaces).isEmpty ? "\(title) cannot be empty." : nil
+    }
 }
 
-// MARK: - LabeledNumericField for Numeric Input
-struct LabeledNumericField: View {
+// MARK: - LabeledCurrencyField for Price Input
+struct LabeledCurrencyField: View {
     var title: String
     var placeholder: String
     @Binding var value: Double
@@ -168,24 +188,89 @@ struct LabeledNumericField: View {
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
-            TextField(placeholder, value: $value, format: .number)
-                .padding(.horizontal)
-                .frame(height: 44)
-                .background(Color(.secondarySystemBackground))
-                .cornerRadius(8)
-                .keyboardType(.decimalPad)
-                .overlay(
-                    VStack {
-                        if let error = errorMessage {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                                .padding(.top, 4)
-                        }
-                    },
-                    alignment: .bottomLeading
-                )
+            TextField(
+                placeholder,
+                value: $value,
+                format: .number.precision(.fractionLength(2))
+            )
+            .onChange(of: value) { newValue in
+                errorMessage = validateValue(newValue)
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .keyboardType(.decimalPad)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(
+                        errorMessage == nil ? Color.clear : Color.red,
+                        lineWidth: 1
+                    )
+            )
+
+            if let error = errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.top, 4)
+            }
         }
         .padding(.vertical, 5)
+    }
+
+    private func validateValue(_ value: Double) -> String? {
+        return value <= 0 ? "\(title) must be greater than 0." : nil
+    }
+}
+
+// MARK: - LabeledNumericField for Quantity Input
+struct LabeledNumericField: View {
+    var title: String
+    var placeholder: String
+    @Binding var value: Int
+    @Binding var errorMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            TextField(
+                placeholder,
+                value: $value,
+                format: .number
+            )
+            .onChange(of: value) { newValue in
+                errorMessage = validateValue(newValue)
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .keyboardType(.numberPad)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(
+                        errorMessage == nil ? Color.clear : Color.red,
+                        lineWidth: 1
+                    )
+            )
+
+            if let error = errorMessage {
+                Text(error)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .padding(.top, 4)
+            }
+        }
+        .padding(.vertical, 5)
+    }
+
+    private func validateValue(_ value: Int) -> String? {
+        return value <= 0 ? "\(title) must be greater than 0." : nil
     }
 }
