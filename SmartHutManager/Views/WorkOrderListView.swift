@@ -422,34 +422,6 @@ struct WorkOrderListView: View {
     }
 }
 
-// Enum to handle sorting options
-enum SortOption {
-    case date(ascending: Bool)
-    case workOrderNumber
-    case status
-    case category
-
-    var isDateAscending: Bool {
-        if case .date(let ascending) = self {
-            return ascending
-        }
-        return true // Default to ascending if not sorting by date
-    }
-
-    var comparator: (WorkOrder, WorkOrder) -> Bool {
-        switch self {
-        case .date(let ascending):
-            return { (ascending ? ($0.date ?? Date()) < ($1.date ?? Date()) : ($0.date ?? Date()) > ($1.date ?? Date())) }
-        case .workOrderNumber:
-            return { $0.workOrderNumber < $1.workOrderNumber }
-        case .status:
-            let statusOrder = ["Open", "Completed", "Incomplete"]
-            return { (statusOrder.firstIndex(of: $0.status ?? "") ?? 3) < (statusOrder.firstIndex(of: $1.status ?? "") ?? 3) }
-        case .category:
-            return { ($0.category ?? "").localizedCaseInsensitiveCompare($1.category ?? "") == .orderedAscending }
-        }
-    }
-}
 
 // MessageComposeView for sending text messages
 struct MessageComposeView: UIViewControllerRepresentable {
