@@ -24,6 +24,7 @@ extension Inventory {
     @NSManaged public var highStockThreshold: Int16
     @NSManaged public var date: Date?
     @NSManaged public var usageHistory: Set<UsageRecord>
+    @NSManaged public var inventoryCategory: String?
 }
 
 extension Inventory : Identifiable {

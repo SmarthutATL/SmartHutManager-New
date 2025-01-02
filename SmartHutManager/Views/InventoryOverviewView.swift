@@ -6,63 +6,70 @@ struct InventoryOverviewView: View {
     @StateObject private var viewModel: InventoryViewModel
     @State private var searchQuery: String = ""
     @State private var sortOption: SortOption = .name(ascending: true)
-    @State private var selectedFilter: String? = nil
+    @State private var selectedFilters: Set<String> = [] // Allow multiple filters
+    @State private var selectedCategory: String? = nil
     @State private var selectedTradesman: Tradesmen? = nil
     @State private var itemToAssign: Inventory? = nil
     @State private var itemToEdit: Inventory? = nil
     @State private var isAddingNewItem = false
     @State private var isEditingThresholds = false
-    
+
     init(context: NSManagedObjectContext) {
         _viewModel = StateObject(wrappedValue: InventoryViewModel(context: context))
     }
-    
+
     var body: some View {
         NavigationView {
-            VStack(spacing: 12) { // Compact vertical spacing
-                // Combined Header: Sort Menu + Tradesmen Dropdown
-                headerView
-                
-                // Filter Chips
-                filterChips
-                
-                // Inventory List
-                inventoryList
+            ZStack {
+                VStack(spacing: 12) {
+                    // Combined Header: Sort Menu + Tradesmen Dropdown
+                    headerView
+                    
+                    // Category Filter Chips
+                    categoryFilterChips
+                    
+                    // Filter Chips (e.g., Low Stock, In Warehouse, Assigned to Tradesmen)
+                    filterChips
+                    
+                    // Inventory List
+                    inventoryList
+                }
+                .navigationTitle("Inventory Overview")
+                .searchable(text: $searchQuery)
+                .padding(.horizontal, 16)
+                .sheet(isPresented: $isAddingNewItem) {
+                    AddNewItemView(
+                        isAddingNewItem: $isAddingNewItem,
+                        onSave: { name, price, quantity, category in
+                            viewModel.saveNewItem(name: name, price: price, quantity: quantity, category: category)
+                        }
+                    )
+                }
+                .sheet(item: $itemToAssign) { item in
+                    AssignInventoryView(
+                        item: item,
+                        tradesmen: viewModel.tradesmen,
+                        onAssign: { tradesman, quantity in
+                            viewModel.assignItemToTradesman(item: item, tradesman: tradesman, quantity: quantity)
+                        }
+                    )
+                }
+                .sheet(item: $itemToEdit) { item in
+                    EditInventoryItemView(item: item)
+                        .environment(\.managedObjectContext, viewContext)
+                }
+                .sheet(isPresented: $isEditingThresholds) {
+                    EditThresholdsView()
+                        .environment(\.managedObjectContext, viewContext)
+                }
+
+                // Floating Add Button
+                floatingAddButton
             }
-            .navigationTitle("Inventory Overview")
-            .searchable(text: $searchQuery)
-            .padding(.horizontal, 16) // Uniform padding
-            .sheet(isPresented: $isAddingNewItem) {
-                AddNewItemView(
-                    isAddingNewItem: $isAddingNewItem,
-                    onSave: { name, price, quantity in
-                        viewModel.saveNewItem(name: name, price: price, quantity: quantity)
-                    }
-                )
-            }
-            .sheet(item: $itemToAssign) { item in
-                AssignInventoryView(
-                    item: item,
-                    tradesmen: viewModel.tradesmen,
-                    onAssign: { tradesman, quantity in
-                        viewModel.assignItemToTradesman(item: item, tradesman: tradesman, quantity: quantity)
-                    }
-                )
-            }
-            .sheet(item: $itemToEdit) { item in
-                EditInventoryItemView(item: item)
-                    .environment(\.managedObjectContext, viewContext)
-            }
-            .sheet(isPresented: $isEditingThresholds) {
-                EditThresholdsView()
-                    .environment(\.managedObjectContext, viewContext)
-            }
-            
-            floatingAddButton
         }
     }
     
-    // MARK: - Combined Header View
+    // MARK: - Header View
     private var headerView: some View {
         HStack(spacing: 16) {
             // Tradesmen Dropdown
@@ -88,21 +95,6 @@ struct InventoryOverviewView: View {
                 )
             }
             
-            // Edit Thresholds Button
-            Button(action: {
-                isEditingThresholds = true
-            }) {
-                Text("Edit Stock Thresholds")
-                    .font(.subheadline)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.orange.opacity(0.2))
-                    )
-                    .foregroundColor(.black)
-            }
-            
             Spacer()
             
             // Sort Menu
@@ -111,18 +103,38 @@ struct InventoryOverviewView: View {
         .padding(.vertical, 8)
     }
     
+    // MARK: - Category Filter Chips
+    private var categoryFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                FilterChip(title: "All Categories", isSelected: selectedCategory == nil) {
+                    selectedCategory = nil
+                }
+                ForEach(viewModel.categories, id: \.self) { category in
+                    FilterChip(title: category, isSelected: selectedCategory == category) {
+                        selectedCategory = selectedCategory == category ? nil : category
+                    }
+                }
+            }
+            .padding(.vertical, 5)
+        }
+    }
+    
     // MARK: - Filter Chips
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                FilterChip(title: "Low Stock", isSelected: selectedFilter == "Low Stock") {
-                    selectedFilter = selectedFilter == "Low Stock" ? nil : "Low Stock"
+                FilterChip(title: "Low Stock", isSelected: selectedFilters.contains("Low Stock")) {
+                    toggleFilter("Low Stock")
                 }
-                FilterChip(title: "High Stock", isSelected: selectedFilter == "High Stock") {
-                    selectedFilter = selectedFilter == "High Stock" ? nil : "High Stock"
+                FilterChip(title: "High Stock", isSelected: selectedFilters.contains("High Stock")) {
+                    toggleFilter("High Stock")
                 }
-                FilterChip(title: "All Items", isSelected: selectedFilter == nil) {
-                    selectedFilter = nil
+                FilterChip(title: "In Warehouse", isSelected: selectedFilters.contains("In Warehouse")) {
+                    setExclusiveFilter("In Warehouse")
+                }
+                FilterChip(title: "Assigned to Tradesmen", isSelected: selectedFilters.contains("Assigned to Tradesmen")) {
+                    setExclusiveFilter("Assigned to Tradesmen")
                 }
             }
             .padding(.vertical, 5)
@@ -139,6 +151,9 @@ struct InventoryOverviewView: View {
                             Text(item.name ?? "Unknown")
                                 .font(.headline)
                                 .foregroundColor(.primary)
+                            Text("Category: \(item.inventoryCategory ?? "None")")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                             Text("Price: $\(item.price, specifier: "%.2f") | Qty: \(item.quantity)")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
@@ -185,7 +200,7 @@ struct InventoryOverviewView: View {
                     }
                 }
             }
-            .padding(.vertical, 8) // Padding to separate from edges
+            .padding(.vertical, 8)
         }
     }
     
@@ -197,14 +212,15 @@ struct InventoryOverviewView: View {
                 Spacer()
                 Button(action: { isAddingNewItem = true }) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 40, weight: .bold))
-                        .foregroundColor(.blue)
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
                         .padding()
-                        .background(Color.white)
+                        .background(Color.blue)
                         .clipShape(Circle())
                         .shadow(radius: 4)
                 }
-                .padding()
+                .padding(.trailing, 20)
+                .padding(.bottom, 20)
             }
         }
     }
@@ -219,9 +235,6 @@ struct InventoryOverviewView: View {
                 Button("Price (Low to High)") { sortOption = .price(ascending: true) }
                 Button("Price (High to Low)") { sortOption = .price(ascending: false) }
             }
-            Button("Edit Thresholds") {
-                isEditingThresholds = true
-            }
         } label: {
             Image(systemName: "line.horizontal.3.decrease.circle")
                 .font(.title2)
@@ -231,29 +244,55 @@ struct InventoryOverviewView: View {
     
     // MARK: - Filtering and Sorting Logic
     private var filteredAndSortedItems: [Inventory] {
-        // Start with all inventory items
-        var items = viewModel.inventoryItems.filter { $0.tradesmen == nil }
-        
+        var items = viewModel.inventoryItems
+
+        // Filter by selected tradesman
+        if let tradesman = selectedTradesman {
+            items = items.filter { $0.tradesmen == tradesman }
+        }
+
+        // Filter by category
+        if let category = selectedCategory {
+            items = items.filter { $0.inventoryCategory == category }
+        }
+
+        // Apply filter chips
+        if selectedFilters.contains("In Warehouse") {
+            items = items.filter { $0.tradesmen == nil }
+        } else if selectedFilters.contains("Assigned to Tradesmen") {
+            items = items.filter { $0.tradesmen != nil }
+        }
+        if selectedFilters.contains("Low Stock") {
+            items = items.filter { $0.quantity <= $0.lowStockThreshold }
+        }
+        if selectedFilters.contains("High Stock") {
+            items = items.filter { $0.quantity > $0.highStockThreshold }
+        }
+
         // Apply search filter
         if !searchQuery.isEmpty {
             items = items.filter { ($0.name ?? "").localizedCaseInsensitiveContains(searchQuery) }
         }
-        
-        // Apply tradesmen filter
-        if let tradesman = selectedTradesman {
-            items = viewModel.inventoryItems.filter { $0.tradesmen == tradesman }
-        } else {
-            items = items.filter { $0.tradesmen == nil } // Only unassigned items for "All Inventory"
-        }
-        
-        // Apply stock filters
-        if selectedFilter == "Low Stock" {
-            items = items.filter { $0.quantity <= $0.lowStockThreshold }
-        } else if selectedFilter == "High Stock" {
-            items = items.filter { $0.quantity > $0.highStockThreshold }
-        }
-        
+
         // Sort items
         return items.sorted { sortOption.comparator($0, $1) }
+    }
+    
+    // MARK: - Toggle and Exclusive Filters
+    private func toggleFilter(_ filter: String) {
+        if selectedFilters.contains(filter) {
+            selectedFilters.remove(filter)
+        } else {
+            selectedFilters.insert(filter)
+        }
+    }
+
+    private func setExclusiveFilter(_ filter: String) {
+        // Remove mutually exclusive filters
+        selectedFilters.remove("In Warehouse")
+        selectedFilters.remove("Assigned to Tradesmen")
+        if !selectedFilters.contains(filter) {
+            selectedFilters.insert(filter)
+        }
     }
 }
