@@ -31,6 +31,14 @@ struct InventoryOverviewView: View {
                     // Filter Chips (e.g., Low Stock, In Warehouse, Assigned to Tradesmen)
                     filterChips
                     
+                    // Dynamic Feedback for Empty State
+                    if selectedTradesman != nil && selectedFilters.contains("In Warehouse") {
+                        Text("The 'In Warehouse' filter is disabled because items are being filtered by tradesman.")
+                            .font(.footnote)
+                            .foregroundColor(.gray)
+                            .padding(.vertical, 8)
+                    }
+                    
                     // Inventory List
                     inventoryList
                 }
@@ -130,7 +138,11 @@ struct InventoryOverviewView: View {
                 FilterChip(title: "High Stock", isSelected: selectedFilters.contains("High Stock")) {
                     toggleFilter("High Stock")
                 }
-                FilterChip(title: "In Warehouse", isSelected: selectedFilters.contains("In Warehouse")) {
+                FilterChip(
+                    title: "In Warehouse",
+                    isSelected: selectedFilters.contains("In Warehouse"),
+                    isEnabled: selectedTradesman == nil // Disable if a tradesman is selected
+                ) {
                     setExclusiveFilter("In Warehouse")
                 }
                 FilterChip(title: "Assigned to Tradesmen", isSelected: selectedFilters.contains("Assigned to Tradesmen")) {

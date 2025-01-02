@@ -197,25 +197,6 @@ struct InvoiceListView: View {
     }
 }
 
-// MARK: - FilterChip Component
-struct FilterChip: View {
-    let title: String
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.caption)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(isSelected ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
-                .foregroundColor(isSelected ? .blue : .primary)
-                .clipShape(Capsule())
-        }
-    }
-}
-
 // MARK: - Uninvoiced Work Order Row
 struct UninvoicedWorkOrderRow: View {
     let workOrder: WorkOrder
