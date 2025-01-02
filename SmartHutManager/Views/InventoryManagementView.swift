@@ -32,6 +32,17 @@ struct InventoryManagementView: View {
                         }
                     }
                 }
+                cardView {
+                    NavigationLink(destination: AnalyticsDashboardView(context: viewContext)) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            SettingsItem(icon: "chart.bar.xaxis", title: "Analytics Dashboard", color: .orange)
+                            Text("Visualize trends, stock levels, and total inventory value.")
+                                .font(.body)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                }
             }
             .padding(.horizontal, 20) // Added wider padding for more consistent alignment
             .navigationTitle("Inventory Management")

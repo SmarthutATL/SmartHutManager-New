@@ -24,6 +24,7 @@
         <attribute name="price" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="quantity" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="tradesmen" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Tradesmen" inverseName="inventory" inverseEntity="Tradesmen"/>
+        <relationship name="usageHistory" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="UsageRecord" inverseName="inventory" inverseEntity="UsageRecord"/>
     </entity>
     <entity name="Invoice" representedClassName="Invoice" syncable="YES">
         <attribute name="dueDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -82,6 +83,11 @@
         <attribute name="workOrderPoints" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="inventory" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="Inventory" inverseName="tradesmen" inverseEntity="Inventory"/>
         <relationship name="workOrders" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="WorkOrder" inverseName="tradesmen" inverseEntity="WorkOrder"/>
+    </entity>
+    <entity name="UsageRecord" representedClassName="UsageRecord" syncable="YES">
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="quantityUsed" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="inventory" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Inventory" inverseName="usageHistory" inverseEntity="Inventory"/>
     </entity>
     <entity name="WorkOrder" representedClassName=".WorkOrder" syncable="YES">
         <attribute name="category" optional="YES" attributeType="String"/>
