@@ -116,48 +116,61 @@ struct InventoryOverviewView: View {
 
     // MARK: - Inventory List
     private var inventoryList: some View {
-        List(filteredAndSortedItems, id: \.self) { item in
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(item.name ?? "Unknown").font(.headline)
-                    Text("Price: $\(item.price, specifier: "%.2f") | Qty: \(item.quantity)")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                ForEach(filteredAndSortedItems, id: \.self) { item in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(item.name ?? "Unknown")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            Text("Price: $\(item.price, specifier: "%.2f") | Qty: \(item.quantity)")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
 
-                    if let tradesman = item.tradesmen {
-                        Text("Assigned to \(tradesman.name ?? "Technician")")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    } else {
-                        Text("In Warehouse")
-                            .font(.caption)
-                            .foregroundColor(.blue)
+                            if let tradesman = item.tradesmen {
+                                Text("Assigned to \(tradesman.name ?? "Technician")")
+                                    .font(.caption)
+                                    .foregroundColor(.green)
+                            } else {
+                                Text("In Warehouse")
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+
+                        Spacer()
+
+                        if item.tradesmen == nil {
+                            Button(action: {
+                                itemToAssign = item
+                            }) {
+                                Text("Assign")
+                                    .font(.caption)
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 10)
+                                    .background(Color.blue)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                            }
+                        }
                     }
-                }
-
-                Spacer()
-
-                if item.tradesmen == nil {
-                    Button(action: {
-                        itemToAssign = item
-                    }) {
-                        Text("Assign")
-                            .font(.caption)
-                            .padding(6)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(UIColor.secondarySystemBackground))
+                    )
+                    .contextMenu {
+                        Button("Edit") {
+                            itemToEdit = item
+                        }
+                        Button("Delete", role: .destructive) {
+                            viewModel.deleteItem(item)
+                        }
                     }
                 }
             }
-            .contextMenu {
-                Button("Edit") {
-                    itemToEdit = item
-                }
-                Button("Delete", role: .destructive) {
-                    viewModel.deleteItem(item)
-                }
-            }
+            .padding(.vertical, 8) // Padding to separate from edges
         }
     }
 
