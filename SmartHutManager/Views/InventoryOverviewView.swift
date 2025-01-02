@@ -2,14 +2,17 @@ import SwiftUI
 import CoreData
 
 struct InventoryOverviewView: View {
-    @Environment(\.managedObjectContext) private var viewContext // Access Core Data context
+    @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var viewModel: InventoryViewModel
     @State private var searchQuery: String = ""
     @State private var sortOption: SortOption = .name(ascending: true)
     @State private var selectedFilter: String? = nil
+    @State private var selectedTradesman: Tradesmen? = nil
+    @State private var itemToAssign: Inventory? = nil
+    @State private var itemToEdit: Inventory? = nil
     @State private var isAddingNewItem = false
+    @State private var isEditingThresholds = false
 
-    // Initialize the view model with the Core Data context
     init(context: NSManagedObjectContext) {
         _viewModel = StateObject(wrappedValue: InventoryViewModel(context: context))
     }
@@ -19,6 +22,7 @@ struct InventoryOverviewView: View {
             ZStack {
                 VStack {
                     headerView
+                    tradesmenDropdown
                     filterChips
                     inventoryList
                 }
@@ -35,19 +39,42 @@ struct InventoryOverviewView: View {
                     }
                 )
             }
+            .sheet(item: $itemToAssign) { item in
+                AssignInventoryView(
+                    item: item,
+                    tradesmen: viewModel.tradesmen,
+                    onAssign: { tradesman, quantity in
+                        viewModel.assignItemToTradesman(item: item, tradesman: tradesman, quantity: quantity)
+                    }
+                )
+            }
+            .sheet(item: $itemToEdit) { item in
+                EditInventoryItemView(item: item)
+                    .environment(\.managedObjectContext, viewContext)
+            }
+            .sheet(isPresented: $isEditingThresholds) {
+                EditThresholdsView()
+                    .environment(\.managedObjectContext, viewContext)
+            }
         }
     }
 
     private var headerView: some View {
         HStack {
-            if selectedFilter == nil {
-                Text("Total Items: \(viewModel.inventoryItems.count)")
-                    .font(.headline)
-                    .foregroundColor(.gray)
-            }
-            Spacer()
+            Spacer() // Add space to push the sort menu to the right
             sortMenu
         }
+        .padding(.horizontal)
+    }
+
+    private var tradesmenDropdown: some View {
+        Picker("Filter by Tradesman", selection: $selectedTradesman) {
+            Text("All Inventory").tag(nil as Tradesmen?)
+            ForEach(viewModel.tradesmen, id: \.self) { tradesman in
+                Text(tradesman.name ?? "Unknown").tag(tradesman as Tradesmen?)
+            }
+        }
+        .pickerStyle(MenuPickerStyle())
         .padding(.horizontal)
     }
 
@@ -75,10 +102,35 @@ struct InventoryOverviewView: View {
                 Text("Price: $\(item.price, specifier: "%.2f") | Qty: \(item.quantity)")
                     .font(.subheadline)
                     .foregroundColor(.gray)
+
+                if let tradesman = item.tradesmen {
+                    Text("Assigned to \(tradesman.name ?? "Technician")")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                } else {
+                    Text("In Warehouse")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+
+                // Assign button
+                if item.tradesmen == nil {
+                    Button(action: {
+                        itemToAssign = item
+                    }) {
+                        Text("Assign to Tradesman")
+                            .font(.caption)
+                            .padding(6)
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                }
             }
+            // Long-press to show context menu
             .contextMenu {
                 Button("Edit") {
-                    // Add edit functionality here
+                    itemToEdit = item
                 }
                 Button("Delete", role: .destructive) {
                     viewModel.deleteItem(item)
@@ -116,6 +168,9 @@ struct InventoryOverviewView: View {
                 Button("Price (Low to High)") { sortOption = .price(ascending: true) }
                 Button("Price (High to Low)") { sortOption = .price(ascending: false) }
             }
+            Button("Edit Thresholds") {
+                isEditingThresholds = true
+            }
         } label: {
             Image(systemName: "line.horizontal.3.decrease.circle")
                 .font(.title2)
@@ -125,14 +180,25 @@ struct InventoryOverviewView: View {
 
     private var filteredAndSortedItems: [Inventory] {
         var items = viewModel.inventoryItems
+
+        // Apply search filter
         if !searchQuery.isEmpty {
             items = items.filter { ($0.name ?? "").localizedCaseInsensitiveContains(searchQuery) }
         }
-        if selectedFilter == "Low Stock" {
-            items = items.filter { $0.quantity < 10 }
-        } else if selectedFilter == "High Stock" {
-            items = items.filter { $0.quantity >= 10 }
+
+        // Apply tradesmen filter
+        if let tradesman = selectedTradesman {
+            items = items.filter { $0.tradesmen == tradesman }
         }
+
+        // Apply stock filters
+        if selectedFilter == "Low Stock" {
+            items = items.filter { $0.quantity < $0.lowStockThreshold }
+        } else if selectedFilter == "High Stock" {
+            items = items.filter { $0.quantity >= $0.highStockThreshold }
+        }
+
+        // Sort items
         return items.sorted { sortOption.comparator($0, $1) }
     }
 }

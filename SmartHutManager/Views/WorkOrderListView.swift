@@ -330,28 +330,27 @@ struct WorkOrderListView: View {
         var filtered = workOrders.filter { workOrder in
             searchQuery.isEmpty || workOrderMatchesQuery(workOrder)
         }
-        
-        // Apply category filter if selected
+
+        // Apply category filter
         if let selectedCategory = selectedCategory {
             filtered = filtered.filter { $0.category == selectedCategory }
         }
-        
-        // Apply status filter if selected
+
+        // Apply status filter
         if let selectedStatus = selectedStatus {
             filtered = filtered.filter { $0.status == selectedStatus }
         }
-        
-        // Apply technician filter if selected
+
+        // Apply technician filter
         if let selectedTechnician = selectedTechnician {
             filtered = filtered.filter { workOrder in
-                if let tradesmenSet = workOrder.tradesmen as? Set<Tradesmen> {
-                    return tradesmenSet.contains { $0 == selectedTechnician }
-                }
-                return false
+                guard let tradesmenSet = workOrder.tradesmen as? Set<Tradesmen> else { return false }
+                return tradesmenSet.contains(selectedTechnician)
             }
         }
-        
-        return filtered.sorted(by: sortOption.comparator)
+
+        // Sort work orders
+        return filtered.sorted { sortOption.comparator($0, $1) }
     }
 
     // Check if a work order matches the search query
@@ -420,37 +419,4 @@ struct WorkOrderListView: View {
             return .gray
         }
     }
-}
-
-
-// MessageComposeView for sending text messages
-struct MessageComposeView: UIViewControllerRepresentable {
-    var recipients: [String]
-    var body: String
-
-    class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
-        var parent: MessageComposeView
-        
-        init(_ parent: MessageComposeView) {
-            self.parent = parent
-        }
-
-        func messageComposeViewController(_ controller: MFMessageComposeViewController, didFinishWith result: MessageComposeResult) {
-            controller.dismiss(animated: true)
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    func makeUIViewController(context: Context) -> MFMessageComposeViewController {
-        let controller = MFMessageComposeViewController()
-        controller.recipients = recipients
-        controller.body = body
-        controller.messageComposeDelegate = context.coordinator
-        return controller
-    }
-
-    func updateUIViewController(_ uiViewController: MFMessageComposeViewController, context: Context) {}
 }

@@ -12,10 +12,12 @@ struct TechnicianPerformanceView: View {
     @State private var workOrdersCache: [Tradesmen: [WorkOrder]] = [:]
     @State private var loadingTechnician: Tradesmen? = nil
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         ZStack {
-            // Background
-            Color.black
+            // Dynamic background color
+            Color(colorScheme == .dark ? .black : .white)
                 .ignoresSafeArea()
 
             VStack(spacing: 30) {
@@ -62,7 +64,7 @@ struct TechnicianPerformanceView: View {
         Text("Technician Performance")
             .font(.largeTitle)
             .fontWeight(.bold)
-            .foregroundColor(.white)
+            .foregroundColor(colorScheme == .dark ? .white : .black)
             .shadow(radius: 5)
     }
 
@@ -86,7 +88,7 @@ struct TechnicianPerformanceView: View {
         }
         .pickerStyle(WheelPickerStyle())
         .frame(maxWidth: .infinity)
-        .background(Color.white.opacity(0.1))
+        .background(colorScheme == .dark ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
         .cornerRadius(12)
         .padding(.horizontal)
         .onChange(of: selectedTechnician) { technician in
@@ -101,26 +103,26 @@ struct TechnicianPerformanceView: View {
         VStack {
             Text("Select a technician to view their performance.")
                 .font(.body)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
                 .padding()
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color.white.opacity(0.2))
+        .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.05))
         .cornerRadius(15)
     }
 
     private var loadingMetricsView: some View {
         VStack {
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                .progressViewStyle(CircularProgressViewStyle(tint: colorScheme == .dark ? .white : .black))
                 .scaleEffect(1.5)
             Text("Loading metrics...")
                 .font(.body)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
         }
         .padding()
-        .background(Color.white.opacity(0.2))
+        .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.05))
         .cornerRadius(15)
     }
 
@@ -129,7 +131,7 @@ struct TechnicianPerformanceView: View {
         VStack(spacing: 16) {
             Text("Performance Metrics for \(technician.name ?? "Unknown")")
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
 
             performanceMetricCard(title: "Completion Percentage", value: "\(String(format: "%.1f", metrics.completionPercentage))%")
             performanceMetricCard(title: "Total Work Orders", value: "\(metrics.totalOrders)")
@@ -137,7 +139,7 @@ struct TechnicianPerformanceView: View {
             performanceMetricCard(title: "Incomplete Orders", value: "\(metrics.incompleteOrders)")
         }
         .padding()
-        .background(Color.white.opacity(0.2))
+        .background(colorScheme == .dark ? Color.white.opacity(0.2) : Color.black.opacity(0.05))
         .cornerRadius(15)
         .shadow(color: Color.black.opacity(0.2), radius: 5)
         .padding(.horizontal)
@@ -147,15 +149,15 @@ struct TechnicianPerformanceView: View {
         HStack {
             Text(title)
                 .font(.body)
-                .foregroundColor(.white.opacity(0.8))
+                .foregroundColor(colorScheme == .dark ? .white.opacity(0.8) : .black.opacity(0.8))
             Spacer()
             Text(value)
                 .font(.headline)
-                .foregroundColor(.white)
+                .foregroundColor(colorScheme == .dark ? .white : .black)
         }
         .padding(.vertical, 5)
         .padding(.horizontal)
-        .background(Color.blue.opacity(0.6))
+        .background(colorScheme == .dark ? Color.blue.opacity(0.6) : Color.blue.opacity(0.2))
         .cornerRadius(12)
     }
 

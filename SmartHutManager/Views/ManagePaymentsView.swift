@@ -8,60 +8,75 @@ struct ManagePaymentsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    // Navigation Cards
-                    cardView {
-                        NavigationLink(destination: UploadQRCodeView()) {
+                VStack(spacing: 24) { // Increased spacing for better readability
+                    // Upload QR Codes Card
+                    tappableCard {
+                        VStack(alignment: .leading, spacing: 12) {
                             SettingsItem(
                                 icon: "qrcode.viewfinder",
                                 title: "Upload QR Codes",
                                 color: .green
                             )
-                            .foregroundColor(isDarkMode ? .white : .black)
+                            Text("Add or update QR codes for payment methods like Zelle or PayPal.")
+                                .font(.body)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.leading)
                         }
+                    } destination: {
+                        UploadQRCodeView()
                     }
 
-                    cardView {
-                        NavigationLink(destination: GenerateLinksView(viewContext: viewContext)) {
+                    // Generate Payment Links Card
+                    tappableCard {
+                        VStack(alignment: .leading, spacing: 12) {
                             SettingsItem(
                                 icon: "link.circle.fill",
                                 title: "Generate Payment Links",
                                 color: .blue
                             )
-                            .foregroundColor(isDarkMode ? .white : .black)
+                            Text("Create and share payment links for quick and secure transactions.")
+                                .font(.body)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.leading)
                         }
+                    } destination: {
+                        GenerateLinksView(viewContext: viewContext)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.top, 20) // Ensure some space below the title but not excessive
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
             }
             .background(Color(UIColor.systemBackground).ignoresSafeArea())
-            .navigationTitle("Manage Payments") // Proper navigation bar title
-            .navigationBarTitleDisplayMode(.inline) // Align title properly
+            .navigationTitle("Manage Payments")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 
-    // Reusable card-style container
-    private func cardView<Content: View>(
-        isGold: Bool = false,
-        @ViewBuilder content: @escaping () -> Content
+    // MARK: - Reusable tappable card with animation and navigation
+    private func tappableCard<Content: View, Destination: View>(
+        @ViewBuilder content: @escaping () -> Content,
+        @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
-        ZStack {
-            VStack(alignment: .leading, spacing: 12) {
+        NavigationLink(destination: destination()) {
+            VStack(alignment: .leading, spacing: 16) {
                 content()
             }
             .padding()
             .background(
-                LinearGradient(
-                    gradient: isGold
-                        ? Gradient(colors: [Color.yellow.opacity(0.8), Color.orange.opacity(0.8)])
-                        : Gradient(colors: [Color(.secondarySystemBackground), Color(.secondarySystemBackground)]),
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.secondarySystemBackground))
+                    .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
             )
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            .scaleEffect(1.0) // Default scale effect
+            .contentShape(Rectangle()) // Makes the entire card tappable
+            .animation(nil, value: UUID()) // Prevents unwanted animation interference
         }
+        .buttonStyle(PlainButtonStyle()) // Prevents NavigationLink default styling
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded {
+                    // Optionally add tap feedback here if needed
+                }
+        )
     }
 }

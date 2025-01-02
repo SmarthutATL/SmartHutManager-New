@@ -90,14 +90,14 @@ struct TradesmenDetailView: View {
         )
     }
 
-    // MARK: - Badges Section
     private func badgesSection(tradesman: Tradesmen) -> some View {
         VStack(spacing: 16) {
             Text("Badges")
                 .font(.headline)
                 .foregroundColor(.blue)
 
-            if let badges = tradesman.badges, !badges.isEmpty {
+            // Safely convert badges to a Swift array
+            if let badges = tradesman.badges as? [String], !badges.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 16) {
                         ForEach(badges, id: \.self) { badge in
@@ -115,7 +115,6 @@ struct TradesmenDetailView: View {
             }
         }
     }
-
     // MARK: - Actions Section
     private func actionsSection(tradesman: Tradesmen) -> some View {
         VStack(spacing: 16) {

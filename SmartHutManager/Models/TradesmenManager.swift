@@ -48,7 +48,7 @@ class TradesmenManager {
                         newTradesman.address = address
                         newTradesman.email = email
                         newTradesman.points = Int32(points)
-                        newTradesman.badges = badges
+                        newTradesman.badges = badges as NSArray
                         newTradesman.jobCompletionStreak = Int32(jobCompletionStreak)
                     }
                 }
@@ -91,13 +91,19 @@ class TradesmenManager {
     // MARK: - Earn Badge
     func earnBadge(for tradesman: Tradesmen, badge: String, context: NSManagedObjectContext) {
         context.perform {
-            if tradesman.badges == nil {
-                tradesman.badges = []
-            }
-            if !(tradesman.badges?.contains(badge) ?? false) {
-                tradesman.badges?.append(badge)
+            // Ensure badges is initialized as a mutable Swift array
+            var badgesArray = (tradesman.badges as? [String]) ?? []
+            
+            // Add the badge if it doesn't already exist
+            if !badgesArray.contains(badge) {
+                badgesArray.append(badge)
                 print("Badge earned: \(badge) by \(tradesman.name ?? "Unknown")")
             }
+            
+            // Assign the modified array back to tradesman.badges as NSArray
+            tradesman.badges = badgesArray as NSArray
+            
+            // Save the context
             do {
                 try context.save()
             } catch {

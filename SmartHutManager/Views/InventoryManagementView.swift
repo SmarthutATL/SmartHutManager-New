@@ -6,36 +6,34 @@ struct InventoryManagementView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 24) { // Increased spacing between cards for better readability
                 // Inventory Overview Card
                 cardView {
                     NavigationLink(destination: InventoryOverviewView(context: viewContext)) {
-                        SettingsItem(icon: "tray.full.fill", title: "Inventory Overview", color: .blue)
-                    }
-                }
-
-                // Add Inventory Card
-                cardView {
-                    NavigationLink(destination: AddInventoryView(context: viewContext)) {
-                        SettingsItem(icon: "plus.circle.fill", title: "Add Inventory", color: .green)
-                    }
-                }
-
-                // Manage Inventory Card
-                cardView {
-                    NavigationLink(destination: ManageInventoryView(context: viewContext)) {
-                        SettingsItem(icon: "slider.horizontal.3", title: "Manage Inventory", color: .orange)
+                        VStack(alignment: .leading, spacing: 12) {
+                            SettingsItem(icon: "tray.full.fill", title: "Inventory Overview", color: .blue)
+                            Text("View and manage all inventory items, including quantities and assignments.")
+                                .font(.body) // Larger font size
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.leading)
+                        }
                     }
                 }
 
                 // Reports Card
                 cardView {
                     NavigationLink(destination: InventoryReportsView(context: viewContext)) {
-                        SettingsItem(icon: "doc.text.fill", title: "Inventory Reports", color: .purple)
+                        VStack(alignment: .leading, spacing: 12) {
+                            SettingsItem(icon: "doc.text.fill", title: "Inventory Reports", color: .purple)
+                            Text("Generate detailed reports on inventory usage and stock levels.")
+                                .font(.body) // Larger font size
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.leading)
+                        }
                     }
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 20) // Added wider padding for more consistent alignment
             .navigationTitle("Inventory Management")
         }
         .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
@@ -45,14 +43,14 @@ struct InventoryManagementView: View {
     private func cardView<Content: View>(
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) { // Increased spacing for a cleaner look
             content()
         }
         .padding()
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.secondarySystemBackground))
-                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3) // Slightly stronger shadow for emphasis
         )
     }
 }

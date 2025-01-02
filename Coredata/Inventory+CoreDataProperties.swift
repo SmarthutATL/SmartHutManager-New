@@ -6,22 +6,23 @@
 //
 //
 
-import Foundation
-import CoreData
+//import Foundation
+//import CoreData
 
 
-extension Inventory {
+//extension Inventory {
 
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<Inventory> {
-        return NSFetchRequest<Inventory>(entityName: "Inventory")
-    }
+  //  @nonobjc public class func fetchRequest() -> NSFetchRequest<Inventory> {
+  //      return NSFetchRequest<Inventory>(entityName: "Inventory")
+  //  }
 
-    @NSManaged public var name: String?
-    @NSManaged public var price: Double
-    @NSManaged public var quantity: Int16
+ //   @NSManaged public var name: String?
+ //   @NSManaged public var price: Double
+//    @NSManaged public var quantity: Int16
+//    @NSManaged public var tradesmen: Tradesmen?
 
-}
+//}
 
-extension Inventory : Identifiable {
+//extension Inventory : Identifiable {
 
-}
+//}

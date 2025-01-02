@@ -6,47 +6,60 @@
 //
 //
 
-import Foundation
-import CoreData
+//import Foundation
+//import CoreData
 
 
-extension Tradesmen {
+//extension Tradesmen {
 
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<Tradesmen> {
-        return NSFetchRequest<Tradesmen>(entityName: "Tradesmen")
-    }
+  //  @nonobjc public class func fetchRequest() -> NSFetchRequest<Tradesmen> {
+   //     return NSFetchRequest<Tradesmen>(entityName: "Tradesmen")
+  //  }
 
-    @NSManaged public var name: String?
-    @NSManaged public var jobTitle: String?
-    @NSManaged public var phoneNumber: String?
-    @NSManaged public var address: String?
-    @NSManaged public var workOrders: NSSet?
-    @NSManaged public var email: String?
-    @NSManaged public var points: Int32
-    @NSManaged public var badges: [String]?
-    @NSManaged public var jobCompletionStreak: Int32
-    @NSManaged public var completedJobs: Int16
-    @NSManaged public var workOrderPoints: Int32
+  //  @NSManaged public var name: String?
+ //   @NSManaged public var jobTitle: String?
+ //   @NSManaged public var phoneNumber: String?
+  //  @NSManaged public var address: String?
+  //  @NSManaged public var workOrders: NSSet?
+//    @NSManaged public var email: String?
+  //  @NSManaged public var points: Int32
+  //  @NSManaged public var badges: [String]?
+   // @NSManaged public var jobCompletionStreak: Int32
+   // @NSManaged public var completedJobs: Int16
+   // @NSManaged public var workOrderPoints: Int32
+   // @NSManaged public var inventory: NSSet?
 
-}
+//}
 
 // MARK: Generated accessors for workOrders
-extension Tradesmen {
+//extension Tradesmen {
+    
+//    @objc(addInventoryObject:)
+    //   @NSManaged public func addToInventory(_ value: Inventory)
 
-    @objc(addWorkOrdersObject:)
-    @NSManaged public func addToWorkOrders(_ value: WorkOrder)
+     //  @objc(removeInventoryObject:)
+    //   @NSManaged public func removeFromInventory(_ value: Inventory)
 
-    @objc(removeWorkOrdersObject:)
-    @NSManaged public func removeFromWorkOrders(_ value: WorkOrder)
+  //     @objc(addInventory:)
+  //     @NSManaged public func addToInventory(_ values: NSSet)
 
-    @objc(addWorkOrders:)
-    @NSManaged public func addToWorkOrders(_ values: NSSet)
+      // @objc(removeInventory:)
+     //  @NSManaged public func removeFromInventory(_ values: NSSet)
 
-    @objc(removeWorkOrders:)
-    @NSManaged public func removeFromWorkOrders(_ values: NSSet)
+   // @objc(addWorkOrdersObject:)
+  //  @NSManaged public func addToWorkOrders(_ value: WorkOrder)
 
-}
+   // @objc(removeWorkOrdersObject:)
+ //   @NSManaged public func removeFromWorkOrders(_ value: WorkOrder)
 
-extension Tradesmen : Identifiable {
+ //   @objc(addWorkOrders:)
+ //   @NSManaged public func addToWorkOrders(_ values: NSSet)
 
-}
+//   @objc(removeWorkOrders:)
+//    @NSManaged public func removeFromWorkOrders(_ values: NSSet)
+
+//}
+
+//extension Tradesmen : Identifiable {
+
+//}

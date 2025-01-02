@@ -6,10 +6,10 @@
 //
 //
 
-import Foundation
-import CoreData
+//import Foundation
+//import CoreData
 
-@objc(Inventory)
-public class Inventory: NSManagedObject {
+//@objc(Inventory)
+//public class Inventory: NSManagedObject {
 
-}
+//}

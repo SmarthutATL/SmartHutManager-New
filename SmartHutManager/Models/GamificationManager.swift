@@ -96,7 +96,7 @@ class GamificationManager {
 
         do {
             let results = try context.fetch(fetchRequest)
-            if let tradesman = results.first, let badges = tradesman.badges {
+            if let tradesman = results.first, let badges = tradesman.badges as? [String] {
                 return badges
             }
         } catch {
@@ -128,11 +128,17 @@ class GamificationManager {
         do {
             let results = try context.fetch(fetchRequest)
             if let tradesman = results.first {
-                if tradesman.badges == nil {
-                    tradesman.badges = []
-                }
-                if !(tradesman.badges?.contains(badge) ?? false) {
-                    tradesman.badges?.append(badge)
+                // Convert badges to a mutable array
+                var badges = tradesman.badges as? [String] ?? []
+
+                // Add the badge if it doesn't already exist
+                if !badges.contains(badge) {
+                    badges.append(badge)
+
+                    // Assign the updated array back to tradesman.badges
+                    tradesman.badges = badges as NSArray
+
+                    // Save changes to Core Data
                     try context.save()
                     print("Badge \(badge) added for \(user).")
                 }

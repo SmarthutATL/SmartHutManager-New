@@ -8,68 +8,80 @@ enum SortOption: Hashable, CaseIterable {
     case status
     case category
 
-    // Computed property for determining ascending order for date
+    /// Function to compare two items based on the selected sort option
+    func comparator<T>(_ lhs: T, _ rhs: T) -> Bool {
+        if let lhs = lhs as? Inventory, let rhs = rhs as? Inventory {
+            return compareInventory(lhs: lhs, rhs: rhs)
+        } else if let lhs = lhs as? WorkOrder, let rhs = rhs as? WorkOrder {
+            return compareWorkOrder(lhs: lhs, rhs: rhs)
+        }
+        return false
+    }
+
+    /// Compares Inventory objects
+    private func compareInventory(lhs: Inventory, rhs: Inventory) -> Bool {
+        switch self {
+        case .date(let ascending):
+            // If Inventory doesn't have a `date`, remove this case
+            return ascending ? (lhs.date ?? Date.distantPast) < (rhs.date ?? Date.distantPast)
+                             : (lhs.date ?? Date.distantPast) > (rhs.date ?? Date.distantPast)
+
+        case .name(let ascending):
+            let lhsName = lhs.name ?? ""
+            let rhsName = rhs.name ?? ""
+            return ascending ? lhsName < rhsName : lhsName > rhsName
+
+        case .price(let ascending):
+            return ascending ? lhs.price < rhs.price : lhs.price > rhs.price
+
+        default:
+            return false
+        }
+    }
+
+    /// Compares WorkOrder objects
+    private func compareWorkOrder(lhs: WorkOrder, rhs: WorkOrder) -> Bool {
+        switch self {
+        case .date(let ascending):
+            let lhsDate = lhs.date ?? Date.distantPast
+            let rhsDate = rhs.date ?? Date.distantPast
+            return ascending ? lhsDate < rhsDate : lhsDate > rhsDate
+
+        case .name(let ascending):
+            let lhsCategory = lhs.category ?? ""
+            let rhsCategory = rhs.category ?? ""
+            return ascending ? lhsCategory < rhsCategory : rhsCategory > lhsCategory
+
+        case .workOrderNumber:
+            let lhsNumber = String(lhs.workOrderNumber)
+            let rhsNumber = String(rhs.workOrderNumber)
+            return lhsNumber < rhsNumber
+
+        case .status:
+            let statusOrder = ["Open", "In Progress", "Completed"]
+            let lhsIndex = statusOrder.firstIndex(of: lhs.status ?? "") ?? statusOrder.count
+            let rhsIndex = statusOrder.firstIndex(of: rhs.status ?? "") ?? statusOrder.count
+            return lhsIndex < rhsIndex
+
+        case .category:
+            let lhsCategory = lhs.category ?? ""
+            let rhsCategory = rhs.category ?? ""
+            return lhsCategory.localizedCaseInsensitiveCompare(rhsCategory) == .orderedAscending
+
+        default:
+            return false
+        }
+    }
+
+    /// Computed property to check if the sort option is date ascending
     var isDateAscending: Bool {
         if case .date(let ascending) = self {
             return ascending
         }
-        return true
+        return false
     }
 
-    // Comparator function for dynamic sorting
-    var comparator: (Any, Any) -> Bool {
-        switch self {
-        case .date(let ascending):
-            return { (lhs, rhs) in
-                guard let lhs = lhs as? WorkOrder, let rhs = rhs as? WorkOrder else { return false }
-                return ascending ? (lhs.date ?? Date()) < (rhs.date ?? Date()) : (lhs.date ?? Date()) > (rhs.date ?? Date())
-            }
-        case .name(let ascending):
-            return { (lhs, rhs) in
-                if let lhs = lhs as? Material, let rhs = rhs as? Material {
-                    return ascending ? lhs.name < rhs.name : lhs.name > rhs.name
-                } else if let lhs = lhs as? WorkOrder, let rhs = rhs as? WorkOrder {
-                    return ascending ? (lhs.category ?? "") < (rhs.category ?? "") : (lhs.category ?? "") > (rhs.category ?? "")
-                }
-                return false
-            }
-        case .price(let ascending):
-            return { (lhs, rhs) in
-                guard let lhs = lhs as? Material, let rhs = rhs as? Material else { return false }
-                return ascending ? lhs.price < rhs.price : lhs.price > rhs.price
-            }
-        case .workOrderNumber:
-            return { (lhs, rhs) in
-                guard let lhs = lhs as? WorkOrder, let rhs = rhs as? WorkOrder else { return false }
-                return lhs.workOrderNumber < rhs.workOrderNumber
-            }
-        case .status:
-            return { (lhs, rhs) in
-                guard let lhs = lhs as? WorkOrder, let rhs = rhs as? WorkOrder else { return false }
-                let statusOrder = ["Open", "Completed", "Incomplete"]
-                return (statusOrder.firstIndex(of: lhs.status ?? "") ?? 3) < (statusOrder.firstIndex(of: rhs.status ?? "") ?? 3)
-            }
-        case .category:
-            return { (lhs, rhs) in
-                guard let lhs = lhs as? WorkOrder, let rhs = rhs as? WorkOrder else { return false }
-                return (lhs.category ?? "").localizedCaseInsensitiveCompare(rhs.category ?? "") == .orderedAscending
-            }
-        }
-    }
-
-    // Display name for the sort option
-    var displayName: String {
-        switch self {
-        case .date(let ascending): return ascending ? "Date ↑" : "Date ↓"
-        case .name(let ascending): return ascending ? "Name ↑" : "Name ↓"
-        case .price(let ascending): return ascending ? "Price ↑" : "Price ↓"
-        case .workOrderNumber: return "Work Order Number"
-        case .status: return "Status"
-        case .category: return "Category"
-        }
-    }
-
-    // List of all sort options
+    /// All cases for the `SortOption` enum
     static var allCases: [SortOption] {
         [
             .date(ascending: true), .date(ascending: false),
