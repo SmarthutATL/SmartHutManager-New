@@ -19,18 +19,19 @@ struct InventoryOverviewView: View {
 
     var body: some View {
         NavigationView {
-            ZStack {
-                VStack {
-                    headerView
-                    tradesmenDropdown
-                    filterChips
-                    inventoryList
-                }
-                .navigationTitle("Inventory Overview")
-                .searchable(text: $searchQuery)
+            VStack(spacing: 12) { // Compact vertical spacing
+                // Combined Header: Sort Menu + Tradesmen Dropdown
+                headerView
 
-                floatingAddButton
+                // Filter Chips
+                filterChips
+
+                // Inventory List
+                inventoryList
             }
+            .navigationTitle("Inventory Overview")
+            .searchable(text: $searchQuery)
+            .padding(.horizontal, 16) // Uniform padding
             .sheet(isPresented: $isAddingNewItem) {
                 AddNewItemView(
                     isAddingNewItem: $isAddingNewItem,
@@ -56,31 +57,49 @@ struct InventoryOverviewView: View {
                 EditThresholdsView()
                     .environment(\.managedObjectContext, viewContext)
             }
+
+            floatingAddButton
         }
     }
 
+    // MARK: - Combined Header View
     private var headerView: some View {
         HStack {
-            Spacer() // Add space to push the sort menu to the right
+            // Redesigned Tradesmen Dropdown
+            Menu {
+                Picker(selection: $selectedTradesman, label: Text("Filter by Tradesman")) {
+                    Text("All Inventory").tag(nil as Tradesmen?)
+                    ForEach(viewModel.tradesmen, id: \.self) { tradesman in
+                        Text(tradesman.name ?? "Unknown").tag(tradesman as Tradesmen?)
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(selectedTradesman == nil ? "All Inventory" : selectedTradesman?.name ?? "Technician")
+                        .foregroundColor(.primary)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(UIColor.secondarySystemBackground))
+                )
+            }
+
+            Spacer()
+
+            // Sort Menu
             sortMenu
         }
-        .padding(.horizontal)
+        .padding(.vertical, 8) // Add slight padding for a clean look
     }
 
-    private var tradesmenDropdown: some View {
-        Picker("Filter by Tradesman", selection: $selectedTradesman) {
-            Text("All Inventory").tag(nil as Tradesmen?)
-            ForEach(viewModel.tradesmen, id: \.self) { tradesman in
-                Text(tradesman.name ?? "Unknown").tag(tradesman as Tradesmen?)
-            }
-        }
-        .pickerStyle(MenuPickerStyle())
-        .padding(.horizontal)
-    }
-
+    // MARK: - Filter Chips
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 FilterChip(title: "Low Stock", isSelected: selectedFilter == "Low Stock") {
                     selectedFilter = selectedFilter == "Low Stock" ? nil : "Low Stock"
                 }
@@ -91,34 +110,38 @@ struct InventoryOverviewView: View {
                     selectedFilter = nil
                 }
             }
-            .padding(.horizontal)
+            .padding(.vertical, 5)
         }
     }
 
+    // MARK: - Inventory List
     private var inventoryList: some View {
         List(filteredAndSortedItems, id: \.self) { item in
-            VStack(alignment: .leading, spacing: 5) {
-                Text(item.name ?? "Unknown").font(.headline)
-                Text("Price: $\(item.price, specifier: "%.2f") | Qty: \(item.quantity)")
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
+            HStack {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(item.name ?? "Unknown").font(.headline)
+                    Text("Price: $\(item.price, specifier: "%.2f") | Qty: \(item.quantity)")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
 
-                if let tradesman = item.tradesmen {
-                    Text("Assigned to \(tradesman.name ?? "Technician")")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                } else {
-                    Text("In Warehouse")
-                        .font(.caption)
-                        .foregroundColor(.blue)
+                    if let tradesman = item.tradesmen {
+                        Text("Assigned to \(tradesman.name ?? "Technician")")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    } else {
+                        Text("In Warehouse")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
                 }
 
-                // Assign button
+                Spacer()
+
                 if item.tradesmen == nil {
                     Button(action: {
                         itemToAssign = item
                     }) {
-                        Text("Assign to Tradesman")
+                        Text("Assign")
                             .font(.caption)
                             .padding(6)
                             .background(Color.blue)
@@ -127,7 +150,6 @@ struct InventoryOverviewView: View {
                     }
                 }
             }
-            // Long-press to show context menu
             .contextMenu {
                 Button("Edit") {
                     itemToEdit = item
@@ -139,6 +161,7 @@ struct InventoryOverviewView: View {
         }
     }
 
+    // MARK: - Floating Add Button
     private var floatingAddButton: some View {
         VStack {
             Spacer()
@@ -146,19 +169,19 @@ struct InventoryOverviewView: View {
                 Spacer()
                 Button(action: { isAddingNewItem = true }) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(size: 40, weight: .bold))
+                        .foregroundColor(.blue)
                         .padding()
-                        .background(Color.blue)
+                        .background(Color.white)
                         .clipShape(Circle())
                         .shadow(radius: 4)
                 }
-                .padding(.trailing, 20)
-                .padding(.bottom, 20)
+                .padding()
             }
         }
     }
 
+    // MARK: - Sort Menu
     private var sortMenu: some View {
         Menu {
             Section(header: Text("Sort Options")) {
@@ -178,6 +201,7 @@ struct InventoryOverviewView: View {
         }
     }
 
+    // MARK: - Filtering and Sorting Logic
     private var filteredAndSortedItems: [Inventory] {
         var items = viewModel.inventoryItems
 
