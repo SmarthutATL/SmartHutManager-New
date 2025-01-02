@@ -14,7 +14,6 @@ struct AnalyticsDashboardView: View {
     }
     
     private var lowStockItems: [Inventory] {
-        // Filter for items with low stock, eliminate duplicates, and include only warehouse items
         var uniqueNames = Set<String>()
         return inventoryItems.filter { item in
             item.quantity < 10 && item.tradesmen == nil && uniqueNames.insert(item.name ?? "").inserted
@@ -25,9 +24,8 @@ struct AnalyticsDashboardView: View {
         let calendar = Calendar.current
         var usageData: [String: Int] = [:]
         
-        // Group inventory usage data by month
         for item in inventoryItems {
-            for usage in item.usageHistory { // Directly iterate over usageHistory
+            for usage in item.usageHistory {
                 if let date = usage.date {
                     let month = calendar.component(.month, from: date)
                     let year = calendar.component(.year, from: date)
@@ -38,18 +36,49 @@ struct AnalyticsDashboardView: View {
             }
         }
         
-        // Sort data by month and year
         let sortedData = usageData.sorted { $0.key < $1.key }
-        print("Stock Usage Trend Data: \(sortedData)") // Debug print
         return sortedData
     }
-
+    
+    private var topLowStockItems: [Inventory] {
+        lowStockItems.sorted { $0.quantity < $1.quantity }.prefix(5).map { $0 }
+    }
+    
+    private var inventoryTurnoverRate: Double {
+        let totalUsage = inventoryItems.reduce(0) { $0 + $1.usageHistory.reduce(0) { $0 + Double($1.quantityUsed) } }
+        return totalInventoryValue == 0 ? 0 : totalUsage / totalInventoryValue
+    }
+    
+    private var mostUsedItems: [Inventory] {
+        let calendar = Calendar.current
+        let lastMonth = calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+        
+        // Filter items used in the last month
+        let itemsUsedLastMonth = inventoryItems.filter { item in
+            item.usageHistory.contains { usage in
+                if let usageDate = usage.date {
+                    return usageDate >= lastMonth
+                }
+                return false
+            }
+        }
+        
+        // Sort by total quantity used
+        let sortedItems = itemsUsedLastMonth.sorted { item1, item2 in
+            let totalUsage1 = item1.usageHistory.reduce(0) { $0 + $1.quantityUsed }
+            let totalUsage2 = item2.usageHistory.reduce(0) { $0 + $1.quantityUsed }
+            return totalUsage1 > totalUsage2
+        }
+        
+        // Return the top 5 items
+        return Array(sortedItems.prefix(5))
+    }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 // Total Inventory Value
                 analyticsCard(title: "Total Inventory Value", value: String(format: "$%.2f", totalInventoryValue)) {
-                    EmptyView() // Optional placeholder for no additional content
+                    EmptyView()
                 }
                 
                 // Items with Low Stock
@@ -61,13 +90,65 @@ struct AnalyticsDashboardView: View {
                     }
                 }
                 
+                // Top 5 Low Stock Items
+                analyticsCard(title: "Top 5 Low Stock Items", value: "") {
+                    if topLowStockItems.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No low stock items.")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("All inventory items are sufficiently stocked.")
+                                .font(.footnote)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 16)
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        ForEach(topLowStockItems, id: \.self) { item in
+                            Text("\(item.name ?? "Unknown") - Qty: \(item.quantity)")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                
+                // Inventory Turnover Rate
+                analyticsCard(title: "Inventory Turnover Rate", value: String(format: "%.2f", inventoryTurnoverRate)) {
+                    Text("Turnover rate indicates how efficiently inventory is used.")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                
+                // Most Frequently Used Items
+                analyticsCard(title: "Top 5 Most Used Items", value: "") {
+                    if mostUsedItems.isEmpty {
+                        VStack(spacing: 8) {
+                            Text("No frequently used items.")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("Usage data is currently unavailable or insufficient.")
+                                .font(.footnote)
+                                .foregroundColor(.gray)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 16)
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        ForEach(mostUsedItems, id: \.self) { item in
+                            Text("\(item.name ?? "Unknown") - Used: \(item.usageHistory.reduce(0) { $0 + $1.quantityUsed })")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                
                 // Trends Over Time (Chart)
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Stock Usage Trends")
                         .font(.headline)
                     
                     if stockUsageTrend.isEmpty {
-                        // Display an enhanced empty state view
                         VStack(spacing: 16) {
                             Image(systemName: "chart.bar.xaxis")
                                 .resizable()
@@ -90,7 +171,6 @@ struct AnalyticsDashboardView: View {
                                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                         )
                     } else {
-                        // Display the chart when data is available
                         Chart(stockUsageTrend, id: \.0) { data in
                             LineMark(
                                 x: .value("Month", data.0),
@@ -122,7 +202,7 @@ struct AnalyticsDashboardView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.blue)
 
-            content() // Call the trailing closure here
+            content()
         }
         .padding()
         .background(
