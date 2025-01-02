@@ -12,20 +12,20 @@ struct InventoryOverviewView: View {
     @State private var itemToEdit: Inventory? = nil
     @State private var isAddingNewItem = false
     @State private var isEditingThresholds = false
-
+    
     init(context: NSManagedObjectContext) {
         _viewModel = StateObject(wrappedValue: InventoryViewModel(context: context))
     }
-
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 12) { // Compact vertical spacing
                 // Combined Header: Sort Menu + Tradesmen Dropdown
                 headerView
-
+                
                 // Filter Chips
                 filterChips
-
+                
                 // Inventory List
                 inventoryList
             }
@@ -57,15 +57,15 @@ struct InventoryOverviewView: View {
                 EditThresholdsView()
                     .environment(\.managedObjectContext, viewContext)
             }
-
+            
             floatingAddButton
         }
     }
-
+    
     // MARK: - Combined Header View
     private var headerView: some View {
-        HStack {
-            // Redesigned Tradesmen Dropdown
+        HStack(spacing: 16) {
+            // Tradesmen Dropdown
             Menu {
                 Picker(selection: $selectedTradesman, label: Text("Filter by Tradesman")) {
                     Text("All Inventory").tag(nil as Tradesmen?)
@@ -87,15 +87,30 @@ struct InventoryOverviewView: View {
                         .fill(Color(UIColor.secondarySystemBackground))
                 )
             }
-
+            
+            // Edit Thresholds Button
+            Button(action: {
+                isEditingThresholds = true
+            }) {
+                Text("Edit Stock Thresholds")
+                    .font(.subheadline)
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange.opacity(0.2))
+                    )
+                    .foregroundColor(.black)
+            }
+            
             Spacer()
-
+            
             // Sort Menu
             sortMenu
         }
-        .padding(.vertical, 8) // Add slight padding for a clean look
+        .padding(.vertical, 8)
     }
-
+    
     // MARK: - Filter Chips
     private var filterChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -113,7 +128,7 @@ struct InventoryOverviewView: View {
             .padding(.vertical, 5)
         }
     }
-
+    
     // MARK: - Inventory List
     private var inventoryList: some View {
         ScrollView {
@@ -127,20 +142,20 @@ struct InventoryOverviewView: View {
                             Text("Price: $\(item.price, specifier: "%.2f") | Qty: \(item.quantity)")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
-
+                            
                             if let tradesman = item.tradesmen {
                                 Text("Assigned to \(tradesman.name ?? "Technician")")
                                     .font(.caption)
-                                    .foregroundColor(.green)
+                                    .foregroundColor(.blue)
                             } else {
                                 Text("In Warehouse")
                                     .font(.caption)
                                     .foregroundColor(.blue)
                             }
                         }
-
+                        
                         Spacer()
-
+                        
                         if item.tradesmen == nil {
                             Button(action: {
                                 itemToAssign = item
@@ -173,7 +188,7 @@ struct InventoryOverviewView: View {
             .padding(.vertical, 8) // Padding to separate from edges
         }
     }
-
+    
     // MARK: - Floating Add Button
     private var floatingAddButton: some View {
         VStack {
@@ -193,7 +208,7 @@ struct InventoryOverviewView: View {
             }
         }
     }
-
+    
     // MARK: - Sort Menu
     private var sortMenu: some View {
         Menu {
@@ -213,28 +228,31 @@ struct InventoryOverviewView: View {
                 .foregroundColor(.blue)
         }
     }
-
+    
     // MARK: - Filtering and Sorting Logic
     private var filteredAndSortedItems: [Inventory] {
-        var items = viewModel.inventoryItems
-
+        // Start with all inventory items
+        var items = viewModel.inventoryItems.filter { $0.tradesmen == nil }
+        
         // Apply search filter
         if !searchQuery.isEmpty {
             items = items.filter { ($0.name ?? "").localizedCaseInsensitiveContains(searchQuery) }
         }
-
+        
         // Apply tradesmen filter
         if let tradesman = selectedTradesman {
-            items = items.filter { $0.tradesmen == tradesman }
+            items = viewModel.inventoryItems.filter { $0.tradesmen == tradesman }
+        } else {
+            items = items.filter { $0.tradesmen == nil } // Only unassigned items for "All Inventory"
         }
-
+        
         // Apply stock filters
         if selectedFilter == "Low Stock" {
-            items = items.filter { $0.quantity < $0.lowStockThreshold }
+            items = items.filter { $0.quantity <= $0.lowStockThreshold }
         } else if selectedFilter == "High Stock" {
-            items = items.filter { $0.quantity >= $0.highStockThreshold }
+            items = items.filter { $0.quantity > $0.highStockThreshold }
         }
-
+        
         // Sort items
         return items.sorted { sortOption.comparator($0, $1) }
     }
