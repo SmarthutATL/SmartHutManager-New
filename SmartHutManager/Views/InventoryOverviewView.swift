@@ -31,16 +31,12 @@ struct InventoryOverviewView: View {
                     // Filter Chips (e.g., Low Stock, In Warehouse, Assigned to Tradesmen)
                     filterChips
                     
-                    // Dynamic Feedback for Empty State
-                    if selectedTradesman != nil && selectedFilters.contains("In Warehouse") {
-                        Text("The 'In Warehouse' filter is disabled because items are being filtered by tradesman.")
-                            .font(.footnote)
-                            .foregroundColor(.gray)
-                            .padding(.vertical, 8)
+                    // Empty State or Inventory List
+                    if filteredAndSortedItems.isEmpty {
+                        emptyStateView
+                    } else {
+                        inventoryList
                     }
-                    
-                    // Inventory List
-                    inventoryList
                 }
                 .navigationTitle("Inventory Overview")
                 .searchable(text: $searchQuery)
@@ -77,6 +73,39 @@ struct InventoryOverviewView: View {
         }
     }
     
+    // MARK: - Empty State View
+    private var emptyStateView: some View {
+        VStack {
+            Spacer()
+            Text(emptyStateMessage)
+                .font(.title2)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding()
+            Spacer()
+        }
+    }
+
+    private var emptyStateMessage: String {
+        if !searchQuery.isEmpty {
+            return "No items match your search query."
+        } else if let category = selectedCategory {
+            return "No items found in the category '\(category)'."
+        } else if selectedTradesman != nil {
+            return "No items assigned to this tradesman."
+        } else if selectedFilters.contains("In Warehouse") {
+            return "No items currently in the warehouse."
+        } else if selectedFilters.contains("Low Stock") {
+            return "No items running low on stock."
+        } else if selectedFilters.contains("High Stock") {
+            return "No items with high stock levels."
+        } else if selectedFilters.contains("Assigned to Tradesmen") {
+            return "No items assigned to any tradesman."
+        } else {
+            return "No items available in inventory."
+        }
+    }
+
     // MARK: - Header View
     private var headerView: some View {
         HStack(spacing: 16) {
@@ -104,6 +133,21 @@ struct InventoryOverviewView: View {
             }
             
             Spacer()
+            
+            // "Edit Thresholds" Button
+            Button(action: {
+                isEditingThresholds = true
+            }) {
+                Text("Edit Thresholds")
+                    .font(.subheadline)
+                    .foregroundColor(.white) // Set text color to white
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.orange) // Set background fill to orange
+                    )
+            }
             
             // Sort Menu
             sortMenu

@@ -13,29 +13,42 @@ struct EditThresholdsView: View {
 
     var body: some View {
         NavigationView {
-            VStack {
+            VStack(spacing: 0) {
                 // Info Section Toggle
                 infoSection
-
+                
+                // Inventory List
                 ScrollView {
-                    VStack(spacing: 16) {
+                    LazyVStack(spacing: 8) {
                         ForEach(inventoryItems) { item in
-                            InventoryThresholdCard(item: item)
+                            InventoryThresholdRow(item: item) // Compact row design
                                 .padding(.horizontal)
                         }
                     }
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 8)
                 }
                 .background(Color(UIColor.systemGroupedBackground).edgesIgnoringSafeArea(.all))
+                
+                // Sticky Save Button
+                saveButton
             }
             .navigationTitle("Edit Stock Thresholds")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveChanges()
-                    }
-                }
-            }
+        }
+    }
+
+    // MARK: - Save Button
+    private var saveButton: some View {
+        Button(action: saveChanges) {
+            Text("Save Changes")
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.orange)
+                .cornerRadius(12)
+                .shadow(radius: 2)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
         }
     }
 
@@ -70,15 +83,14 @@ struct EditThresholdsView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     explanationRow(
                         title: "Low Stock Threshold",
-                        description: "When the quantity of an item reaches this number or lower, you'll receive an alert and it will be marked as 'Low Stock' in the Inventory Overview."
+                        description: "Receive alerts when stock falls to this level."
                     )
                     explanationRow(
                         title: "High Stock Threshold",
-                        description: "This value helps you keep track of surplus inventory. Items with quantities higher than this value can be filtered as 'High Stock' in the Inventory Overview."
+                        description: "Monitor surplus stock with this value."
                     )
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 8)
+                .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(UIColor.secondarySystemBackground))
@@ -102,47 +114,43 @@ struct EditThresholdsView: View {
     }
 }
 
-// MARK: - Inventory Threshold Card
-struct InventoryThresholdCard: View {
+// MARK: - Inventory Threshold Row
+struct InventoryThresholdRow: View {
     @ObservedObject var item: Inventory
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Item Name
-            Text(item.name ?? "Unknown Item")
-                .font(.headline)
-                .foregroundColor(.primary)
-
-            // Input Fields with Descriptions
-            VStack(spacing: 8) {
-                HStack {
-                    Text("Low Stock Threshold:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    TextField("Enter a number", value: $item.lowStockThreshold, format: .number)
-                        .keyboardType(.numberPad)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(width: 80)
-                }
-
-                HStack {
-                    Text("High Stock Threshold:")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    TextField("Enter a number", value: $item.highStockThreshold, format: .number)
-                        .keyboardType(.numberPad)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .frame(width: 80)
-                }
+        VStack(spacing: 4) {
+            HStack {
+                // Item Name
+                Text(item.name ?? "Unknown Item")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
             }
-            .padding()
+            
+            // Compact Fields in a Single Row
+            HStack(spacing: 16) {
+                thresholdField(title: "Low Stock:", value: $item.lowStockThreshold)
+                thresholdField(title: "High Stock:", value: $item.highStockThreshold)
+            }
+            .padding(8)
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color(UIColor.secondarySystemBackground))
             )
         }
-        .padding()
+        .padding(.horizontal)
+    }
+
+    private func thresholdField(title: String, value: Binding<Int16>) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            TextField("Enter", value: value, format: .number)
+                .keyboardType(.numberPad)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .frame(width: 60)
+        }
     }
 }

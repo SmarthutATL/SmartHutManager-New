@@ -92,8 +92,18 @@ class InventoryViewModel: ObservableObject {
 
     // Assign inventory item to a tradesman
     func assignItemToTradesman(item: Inventory, tradesman: Tradesmen, quantity: Int16) {
+        guard let itemName = item.name else {
+            print("Item name is nil, assignment aborted.")
+            return
+        }
+
         guard item.quantity >= quantity else {
-            print("Not enough stock to assign.")
+            print("Not enough stock of \(itemName) to assign \(quantity). Current stock: \(item.quantity).")
+            return
+        }
+
+        guard quantity > 0 else {
+            print("Invalid quantity (\(quantity)) for assignment.")
             return
         }
 
@@ -106,10 +116,10 @@ class InventoryViewModel: ObservableObject {
         assignedItem.price = item.price
         assignedItem.quantity = quantity
         assignedItem.tradesmen = tradesman
-        assignedItem.inventoryCategory = item.inventoryCategory // Ensure category is inherited
+        assignedItem.inventoryCategory = item.inventoryCategory
 
-        // Save changes
         saveContext()
+        print("Assigned \(quantity) of \(itemName) to \(tradesman.name ?? "Unknown Tradesman").")
     }
 
     // Update an existing inventory item

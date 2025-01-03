@@ -51,7 +51,7 @@ struct AssignInventoryView: View {
                 Text("Select Quantity")
                     .font(.headline)
 
-                Stepper(value: $quantityToAssign, in: 1...item.quantity) {
+                Stepper(value: $quantityToAssign, in: 1...max(1, item.quantity)) {
                     Text("Quantity: \(quantityToAssign)")
                         .font(.subheadline)
                 }
