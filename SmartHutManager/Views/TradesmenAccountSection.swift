@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 import LocalAuthentication
 import FirebaseFirestore
 import MessageUI
@@ -12,6 +13,10 @@ struct TradesmanAccountSection: View {
     @State private var isLoading = true
     @State private var isShowingMailView = false
     @State private var emailErrorMessage: String? = nil
+    @State private var userName: String? = nil
+    @State private var userRole: String? = nil
+    @State private var userFullName: String? = nil // Update to hold the full name
+    
 
     var body: some View {
         if let tradesman = tradesman {
@@ -25,11 +30,11 @@ struct TradesmanAccountSection: View {
                         .foregroundColor(.blue)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(tradesman.name ?? "Unknown")
+                        Text(userFullName ?? "Unknown Name") // Updated to use userFullName
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundColor(.primary)
 
-                        Text(tradesman.jobTitle ?? "Unknown Job Title")
+                        Text(userRole ?? "Unknown Job Title")
                             .font(.system(size: 18))
                             .foregroundColor(.secondary)
                     }
@@ -124,30 +129,53 @@ struct TradesmanAccountSection: View {
 
     // MARK: - Fetch Company ID
     private func fetchCompanyID() {
-        guard let email = tradesman?.email else {
-            print("Tradesman email is nil.")
+        guard let email = Auth.auth().currentUser?.email else {
+            print("[Error] Authenticated user email is nil.")
             return
         }
 
         let db = Firestore.firestore()
         isLoading = true
 
+        print("Fetching user data for authenticated email: \(email)")
         db.collection("users").whereField("email", isEqualTo: email).getDocuments { snapshot, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("Error fetching company ID: \(error.localizedDescription)")
+                    print("[Error] Fetching user data failed: \(error.localizedDescription)")
                     self.companyID = nil
-                } else if let document = snapshot?.documents.first {
-                    if let fetchedCompanyID = document.data()["companyID"] as? String {
-                        self.companyID = fetchedCompanyID
-                        print("Company ID fetched successfully: \(fetchedCompanyID)")
-                    } else {
-                        print("Company ID field is missing in the document.")
-                        self.companyID = nil
+                    self.userFullName = nil
+                    self.userRole = nil
+                    if let tradesman = self.tradesman {
+                        tradesman.phoneNumber = nil
+                        tradesman.address = nil
+                        tradesman.email = nil
                     }
+                } else if let snapshot = snapshot, let document = snapshot.documents.first {
+                    let data = document.data()
+                    self.companyID = data["companyID"] as? String
+                    let firstName = data["firstName"] as? String
+                    let lastName = data["lastName"] as? String
+                    self.userFullName = [firstName, lastName].compactMap { $0 }.joined(separator: " ")
+                    self.userRole = data["role"] as? String
+                    
+                    // Update tradesman properties
+                    if let tradesman = self.tradesman {
+                        tradesman.phoneNumber = data["phoneNumber"] as? String
+                        tradesman.address = data["address"] as? String
+                        tradesman.email = data["email"] as? String
+                    }
+
+                    print("Data fetched successfully: CompanyID = \(self.companyID ?? "N/A"), Full Name = \(self.userFullName ?? "N/A"), Role = \(self.userRole ?? "N/A")")
                 } else {
-                    print("No matching user found for email: \(email)")
+                    print("[Error] No matching user found for email: \(email)")
                     self.companyID = nil
+                    self.userFullName = nil
+                    self.userRole = nil
+                    if let tradesman = self.tradesman {
+                        tradesman.phoneNumber = nil
+                        tradesman.address = nil
+                        tradesman.email = nil
+                    }
                 }
                 self.isLoading = false
             }
@@ -174,23 +202,23 @@ struct TradesmanAccountSection: View {
 
     // MARK: - Personal Info View
     @ViewBuilder
-    private func personalInfoView(tradesman: Tradesmen) -> some View {
+    private func personalInfoView(tradesman: Tradesmen?) -> some View {
         VStack(alignment: .leading, spacing: 20) {
-            if let phoneNumber = tradesman.phoneNumber, !phoneNumber.isEmpty {
+            if let phoneNumber = tradesman?.phoneNumber, !phoneNumber.isEmpty {
                 InfoRow(icon: "phone.fill", text: phoneNumber, iconColor: .green) {
                     if let url = URL(string: "tel://\(phoneNumber)"), UIApplication.shared.canOpenURL(url) {
                         UIApplication.shared.open(url)
                     }
                 }
             }
-            if let email = tradesman.email, !email.isEmpty {
+            if let email = tradesman?.email, !email.isEmpty {
                 InfoRow(icon: "envelope.fill", text: email, iconColor: .orange) {
                     if let url = URL(string: "mailto:\(email)"), UIApplication.shared.canOpenURL(url) {
                         UIApplication.shared.open(url)
                     }
                 }
             }
-            if let address = tradesman.address, !address.isEmpty {
+            if let address = tradesman?.address, !address.isEmpty {
                 InfoRow(icon: "mappin.and.ellipse", text: address, iconColor: .red) {
                     if let url = URL(string: "http://maps.apple.com/?q=\(address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"),
                        UIApplication.shared.canOpenURL(url) {
@@ -207,7 +235,6 @@ struct TradesmanAccountSection: View {
         )
         .cornerRadius(15)
     }
-
     // MARK: - InfoRow Component
     private struct InfoRow: View {
         let icon: String

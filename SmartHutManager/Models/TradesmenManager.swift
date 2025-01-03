@@ -10,13 +10,15 @@ class TradesmenManager {
     
     // MARK: - Sync Tradesmen from Firestore to Core Data
     func syncTradesmen(context: NSManagedObjectContext, completion: @escaping (Error?) -> Void) {
-        firestore.collection("tradesmen").getDocuments { snapshot, error in
-            if let error = error {
-                completion(error)
+        let firestore = Firestore.firestore()
+        
+        firestore.collection("tradesmen").getDocuments { tradesmenSnapshot, tradesmenError in
+            if let tradesmenError = tradesmenError {
+                completion(tradesmenError)
                 return
             }
             
-            guard let documents = snapshot?.documents else {
+            guard let tradesmenDocuments = tradesmenSnapshot?.documents else {
                 completion(nil)
                 return
             }
@@ -25,31 +27,54 @@ class TradesmenManager {
             let existingTradesmen = self.fetchTradesmen(context: context)
             
             context.perform {
-                for document in documents {
-                    let data = document.data()
+                for tradesmanDocument in tradesmenDocuments {
+                    let tradesmanData = tradesmanDocument.data()
                     
-                    // Parse data from Firestore document
-                    guard let name = data["name"] as? String,
-                          let jobTitle = data["jobTitle"] as? String,
-                          let phoneNumber = data["phoneNumber"] as? String,
-                          let address = data["address"] as? String,
-                          let email = data["email"] as? String,
-                          let points = data["points"] as? Int,
-                          let badges = data["badges"] as? [String],
-                          let jobCompletionStreak = data["jobCompletionStreak"] as? Int else { continue }
+                    // Parse basic data from Firestore tradesmen document
+                    guard let email = tradesmanData["email"] as? String else {
+                        print("Tradesman missing email, skipping...")
+                        continue
+                    }
                     
-                    // Check if the tradesman already exists in Core Data
-                    if !existingTradesmen.contains(where: { $0.name == name && $0.email == email }) {
-                        // Add new tradesman to Core Data
-                        let newTradesman = Tradesmen(context: context)
-                        newTradesman.name = name
-                        newTradesman.jobTitle = jobTitle
-                        newTradesman.phoneNumber = phoneNumber
-                        newTradesman.address = address
-                        newTradesman.email = email
-                        newTradesman.points = Int32(points)
-                        newTradesman.badges = badges as NSArray
-                        newTradesman.jobCompletionStreak = Int32(jobCompletionStreak)
+                    // Fetch additional user data from the `users` collection
+                    firestore.collection("users").whereField("email", isEqualTo: email).getDocuments { userSnapshot, userError in
+                        if let userError = userError {
+                            print("Error fetching user data for email \(email): \(userError.localizedDescription)")
+                            return
+                        }
+                        
+                        guard let userDocument = userSnapshot?.documents.first else {
+                            print("No matching user found for email: \(email)")
+                            return
+                        }
+                        
+                        let userData = userDocument.data()
+                        let firstName = userData["firstName"] as? String ?? "Unknown Name"
+                        let role = userData["role"] as? String ?? "Unknown Role"
+                        
+                        // Parse additional tradesman data
+                        let jobTitle = tradesmanData["jobTitle"] as? String ?? role
+                        let phoneNumber = tradesmanData["phoneNumber"] as? String
+                        let address = tradesmanData["address"] as? String
+                        let points = tradesmanData["points"] as? Int ?? 0
+                        let badges = tradesmanData["badges"] as? [String] ?? []
+                        let jobCompletionStreak = tradesmanData["jobCompletionStreak"] as? Int ?? 0
+                        
+                        // Check if the tradesman already exists in Core Data
+                        if !existingTradesmen.contains(where: { $0.email == email }) {
+                            // Add new tradesman to Core Data
+                            let newTradesman = Tradesmen(context: context)
+                            newTradesman.name = firstName
+                            newTradesman.jobTitle = jobTitle
+                            newTradesman.phoneNumber = phoneNumber
+                            newTradesman.address = address
+                            newTradesman.email = email
+                            newTradesman.points = Int32(points)
+                            newTradesman.badges = badges as NSArray
+                            newTradesman.jobCompletionStreak = Int32(jobCompletionStreak)
+                            
+                            print("Added tradesman: \(firstName) with role: \(role)")
+                        }
                     }
                 }
                 

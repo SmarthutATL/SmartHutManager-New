@@ -13,86 +13,96 @@ class AuthViewModel: ObservableObject {
     private var db = Firestore.firestore()
 
     init() {
-        print("AuthViewModel initialized")
+        print("[AuthViewModel] Initialized.")
         checkIfUserIsSignedIn()
     }
 
-    // Check if the user is already signed in and fetch their role
+    // MARK: - Check If User is Signed In
     private func checkIfUserIsSignedIn() {
-        print("Checking if user is already signed in...")
+        print("[Auth] Checking if user is already signed in...")
         isLoading = true
 
         if let currentUser = Auth.auth().currentUser {
-            print("User is signed in: \(currentUser.email ?? "unknown email")")
+            print("[Auth] User is signed in with UID: \(currentUser.uid), email: \(currentUser.email ?? "unknown email")")
             currentUser.getIDTokenForcingRefresh(true) { [weak self] token, error in
                 if let error = error {
-                    print("Error refreshing token: \(error.localizedDescription)")
+                    print("[Auth Error] Token refresh failed: \(error.localizedDescription)")
                     self?.isLoading = false
                     self?.errorMessage = "Session expired. Please log in again."
                     self?.signOut()
-                } else {
-                    print("Token refreshed successfully. Proceeding to fetch user role.")
+                } else if let token = token {
+                    print("[Auth] Token refreshed successfully: \(token.prefix(10))...")
                     self?.currentUserEmail = currentUser.email?.lowercased()
                     self?.fetchUserRole(email: currentUser.email?.lowercased() ?? "")
+                } else {
+                    print("[Auth Error] Token refresh returned nil.")
+                    self?.isLoading = false
                 }
             }
         } else {
-            print("No user signed in.")
+            print("[Auth] No user currently signed in.")
             isLoading = false
         }
     }
 
-    // Sign-in function
+    // MARK: - Sign In
     func signIn(email: String, password: String) {
-        print("Attempting sign-in with email: \(email)")
+        print("[Auth] Attempting sign-in with email: \(email)")
         isLoading = true
         let lowercasedEmail = email.lowercased()
 
         Auth.auth().signIn(withEmail: lowercasedEmail, password: password) { [weak self] result, error in
             DispatchQueue.main.async {
                 if let error = error as NSError? {
-                    print("Sign-in error: \(error.localizedDescription)")
+                    print("[Auth Error] Sign-in failed for email: \(email), error: \(error.localizedDescription)")
 
-                    // Custom error handling based on Firebase error codes
+                    // Error handling
                     switch AuthErrorCode(rawValue: error.code) {
                     case .wrongPassword:
                         self?.errorMessage = "Incorrect password. Please try again."
+                        print("[Auth Error] Incorrect password.")
                     case .invalidEmail:
                         self?.errorMessage = "Invalid email format. Please enter a valid email."
+                        print("[Auth Error] Invalid email format.")
                     case .userNotFound:
                         self?.errorMessage = "No account found with this email. Please sign up."
+                        print("[Auth Error] No user found for email.")
                     default:
-                        self?.errorMessage = error.localizedDescription
+                        self?.errorMessage = "Unexpected error: \(error.localizedDescription)"
+                        print("[Auth Error] Unhandled error: \(error.localizedDescription)")
                     }
-                    
+
                     self?.isLoading = false
-                } else if let email = result?.user.email {
-                    print("Sign-in successful. Email: \(email)")
-                    self?.currentUserEmail = email.lowercased()
-                    self?.fetchUserRole(email: email.lowercased())
+                } else if let user = result?.user {
+                    print("[Auth] Sign-in successful for user: \(user.email ?? "unknown email"), UID: \(user.uid)")
+                    self?.currentUserEmail = user.email?.lowercased()
+                    self?.fetchUserRole(email: user.email?.lowercased() ?? "")
                 } else {
-                    print("Sign-in unexpected result: result and email are nil.")
+                    print("[Auth Error] Sign-in result returned nil.")
                     self?.isLoading = false
                 }
             }
         }
     }
 
-    // Fetch the user role from Firestore
+    // MARK: - Fetch User Role
     private func fetchUserRole(email: String) {
-        print("Fetching user role for email: \(email)")
+        print("[Firestore] Fetching role for email: \(email)")
         db.collection("users").whereField("email", isEqualTo: email).getDocuments { [weak self] (snapshot, error) in
             if let error = error as NSError? {
-                print("Error fetching user role: \(error.localizedDescription)")
+                print("[Firestore Error] Failed to fetch role for email: \(email), error: \(error.localizedDescription)")
 
-                // Handle Firestore permission errors
+                // Handle Firestore errors
                 switch error.code {
                 case FirestoreErrorCode.permissionDenied.rawValue:
-                    self?.errorMessage = "You don't have permission to access this data. Please contact support."
+                    self?.errorMessage = "Permission denied. Please contact support."
+                    print("[Firestore Error] Permission denied.")
                 case FirestoreErrorCode.unavailable.rawValue:
-                    self?.errorMessage = "Firestore is temporarily unavailable. Please try again later."
+                    self?.errorMessage = "Firestore service is currently unavailable. Please try again later."
+                    print("[Firestore Error] Firestore unavailable.")
                 default:
-                    self?.errorMessage = "Failed to fetch user role: \(error.localizedDescription)"
+                    self?.errorMessage = "Failed to fetch role: \(error.localizedDescription)"
+                    print("[Firestore Error] Unhandled Firestore error: \(error.localizedDescription)")
                 }
 
                 self?.isLoading = false
@@ -100,68 +110,70 @@ class AuthViewModel: ObservableObject {
             }
 
             guard let documents = snapshot?.documents, !documents.isEmpty else {
-                print("No matching document found for email: \(email)")
-                self?.errorMessage = "User account found, but no role information is available. Please contact support."
+                print("[Firestore] No documents found for email: \(email).")
+                self?.errorMessage = "No role information available. Please contact support."
                 self?.isLoading = false
                 return
             }
 
             if let role = documents.first?.data()["role"] as? String {
                 DispatchQueue.main.async {
-                    print("Successfully fetched role: \(role) for user: \(email)")
+                    print("[Firestore] Role successfully retrieved: \(role) for email: \(email).")
                     self?.userRole = role
                     self?.isUserSignedIn = true
                     self?.isLoading = false
                 }
             } else {
-                print("Role field not found for email: \(email)")
-                self?.errorMessage = "User role data is missing. Please contact support."
+                print("[Firestore Error] Role field missing in Firestore document for email: \(email).")
+                self?.errorMessage = "Role data is missing. Please contact support."
                 self?.isLoading = false
             }
         }
     }
 
-    // Function to assign role to a user via Firebase Functions
+    // MARK: - Assign Role
     func assignRoleToUser(email: String, role: String, completion: @escaping (Bool, String?) -> Void) {
+        print("[Functions] Assigning role \(role) to user: \(email)")
         let functions = Functions.functions()
         functions.httpsCallable("assignRole").call(["email": email, "role": role]) { result, error in
             if let error = error as NSError? {
-                print("Error assigning role: \(error.localizedDescription)")
+                print("[Functions Error] Error assigning role: \(error.localizedDescription)")
                 completion(false, "Error assigning role: \(error.localizedDescription)")
             } else if let resultData = result?.data as? [String: Any] {
-                print("Role assigned successfully: \(resultData["message"] ?? "No message")")
+                print("[Functions] Role assigned successfully: \(resultData["message"] ?? "No message")")
                 completion(true, resultData["message"] as? String)
             }
         }
     }
 
-    // Function to save user details to Firestore
+    // MARK: - Save User to Firestore
     func saveUserToFirestore(uid: String, email: String, role: String) {
+        print("[Firestore] Saving user to Firestore with UID: \(uid), email: \(email), role: \(role)")
         db.collection("users").document(uid).setData([
             "email": email,
             "role": role,
             "createdAt": Timestamp(date: Date())
         ]) { error in
             if let error = error {
-                print("Error saving user to Firestore: \(error.localizedDescription)")
+                print("[Firestore Error] Error saving user to Firestore: \(error.localizedDescription)")
             } else {
-                print("User successfully saved to Firestore.")
+                print("[Firestore] User successfully saved to Firestore.")
             }
         }
     }
 
-    // Sign-out function
+    // MARK: - Sign Out
     func signOut() {
-        print("Attempting to sign out...")
+        print("[Auth] Attempting to sign out...")
         do {
             try Auth.auth().signOut()
-            print("Sign-out successful.")
+            print("[Auth] Sign-out successful.")
             self.isUserSignedIn = false
             self.userRole = ""
             self.currentUserEmail = nil
             self.errorMessage = nil
         } catch {
-            print("Failed to sign out: \(error.localizedDescription)")
+            print("[Auth Error] Sign-out failed: \(error.localizedDescription)")
             self.errorMessage = "Failed to sign out: \(error.localizedDescription)"
         }
     }
