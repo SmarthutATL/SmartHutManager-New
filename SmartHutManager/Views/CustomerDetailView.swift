@@ -2,6 +2,10 @@ import SwiftUI
 import CoreData
 import MapKit
 
+import SwiftUI
+import CoreData
+import MapKit
+
 struct CustomerDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @ObservedObject var customer: Customer
@@ -33,16 +37,16 @@ struct CustomerDetailView: View {
         .sheet(isPresented: $isEditing) {
             CustomerEditView(customer: customer) // Present the new edit view
         })
-        .background(Color.black.edgesIgnoringSafeArea(.all)) // Dark background
+        .background(Color(.systemBackground).edgesIgnoringSafeArea(.all)) // Adaptable background
     }
     
     // MARK: - Customer Header
     private var customerHeader: some View {
-        VStack {
+        VStack(alignment: .leading) {
             Text(customer.name ?? "Unknown Name")
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .foregroundColor(.white)
+                .foregroundColor(.primary) // Adaptable text color
                 .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -52,37 +56,33 @@ struct CustomerDetailView: View {
     // MARK: - Action Buttons Section
     private var actionButtonsSection: some View {
         HStack(spacing: 20) {
-            // Message Button
             actionButton(icon: "message.fill", label: "Message", color: .blue) {
                 if let phoneNumber = customer.phoneNumber, let url = URL(string: "sms:\(phoneNumber)") {
                     UIApplication.shared.open(url)
                 }
             }
             
-            // Call Button
             actionButton(icon: "phone.fill", label: "Call", color: .green) {
                 if let phoneNumber = customer.phoneNumber, let url = URL(string: "tel:\(phoneNumber)") {
                     UIApplication.shared.open(url)
                 }
             }
             
-            // Mail Button
             actionButton(icon: "envelope.fill", label: "Mail", color: .red) {
                 if let email = customer.email, let url = URL(string: "mailto:\(email)") {
                     UIApplication.shared.open(url)
                 }
             }
             
-            // Request Pay Button
             actionButton(icon: "dollarsign.circle.fill", label: "Pay", color: .orange) {
                 print("Request Pay tapped")
             }
         }
         .padding()
-        .background(Color(UIColor.systemGray6))
+        .background(Color(UIColor.secondarySystemBackground)) // Adaptable section background
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 4)
-        .frame(maxWidth: .infinity) // Stretches to the edges
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Action Button Helper
@@ -120,7 +120,6 @@ struct CustomerDetailView: View {
     // MARK: - Customer Address Section with Map
     private var customerAddressSectionWithMap: some View {
         VStack(spacing: 16) {
-            // Address text with icon
             infoSection(icon: "map.fill", label: "Address", content: customer.address ?? "No Address", color: .orange)
                 .onTapGesture {
                     if let address = customer.address {
@@ -128,15 +127,14 @@ struct CustomerDetailView: View {
                     }
                 }
             
-            // Add MapView if address is available
             if let address = customer.address, !address.isEmpty {
                 MapView(address: address)
                     .frame(height: 200)
                     .cornerRadius(12)
                     .shadow(radius: 8, x: 0, y: 4)
-                    .frame(maxWidth: .infinity) // Stretches the map view to the edges
+                    .frame(maxWidth: .infinity)
                     .onTapGesture {
-                        openInMaps(address: address) // Make map tappable
+                        openInMaps(address: address)
                     }
             }
         }
@@ -164,8 +162,8 @@ struct CustomerDetailView: View {
             Spacer()
         }
         .padding()
-        .frame(maxWidth: .infinity)  // Ensures all sections are the same width
-        .background(Color(UIColor.systemGray6))
+        .frame(maxWidth: .infinity)
+        .background(Color(UIColor.secondarySystemBackground)) // Adaptable section background
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 3)
     }
@@ -176,20 +174,19 @@ struct CustomerDetailView: View {
             Text("Work Orders")
                 .font(.title2)
                 .fontWeight(.bold)
-                .foregroundColor(.white)
+                .foregroundColor(.primary) // Adaptable text color
                 .padding(.vertical)
             
             if let workOrders = customer.workOrders?.allObjects as? [WorkOrder], !workOrders.isEmpty {
                 ForEach(workOrders, id: \.objectID) { workOrder in
-                    // Use NavigationLink to navigate to the work order's detail view
                     NavigationLink(destination: WorkOrderDetailView(workOrder: workOrder)) {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("#\(workOrder.workOrderNumber)")
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundColor(.primary)
                             Text("Job: \(workOrder.category ?? "Unknown Category")")
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundColor(.secondary)
                             Text("Date: \(formattedDate(workOrder.date))")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
@@ -198,7 +195,7 @@ struct CustomerDetailView: View {
                                 .foregroundColor(.gray)
                         }
                         .padding()
-                        .background(Color(UIColor.systemGray5))
+                        .background(Color(UIColor.secondarySystemBackground))
                         .cornerRadius(10)
                         .shadow(radius: 5)
                         .frame(maxWidth: .infinity)
@@ -211,6 +208,7 @@ struct CustomerDetailView: View {
             }
         }
     }
+
 
     // MARK: - Date Formatting Function
     private func formattedDate(_ date: Date?) -> String {

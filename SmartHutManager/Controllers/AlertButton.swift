@@ -25,12 +25,12 @@ struct AlertButton: View {
                 // Larger Notification Count
                 if alertCount > 0 {
                     Text("\(alertCount)")
-                        .font(.caption) // Slightly larger font
+                        .font(.caption2) // Slightly larger font
                         .fontWeight(.bold)
                         .foregroundColor(.white)
-                        .padding(6) // Increase padding for the badge
+                        .padding(5) // Increase padding for the badge
                         .background(Circle().fill(Color.red))
-                        .offset(x: 10, y: -10) // Adjust offset for the larger badge
+                        .offset(x: 8, y: -8) // Adjust offset for the larger badge
                 }
             }
         }
