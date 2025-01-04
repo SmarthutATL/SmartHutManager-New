@@ -19,6 +19,7 @@ struct SmartHutManagerApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = true
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true // Appearance preference
+    @StateObject private var alertViewModel = AlertViewModel()
 
     init() {
         print("Initializing SmartHutManagerApp")
@@ -74,6 +75,7 @@ struct SmartHutManagerApp: App {
                         .environment(\.managedObjectContext, persistenceController.container.viewContext)
                         .environmentObject(authViewModel) // Provide AuthViewModel
                         .environmentObject(deletedItemsManager) // Provide DeletedItemsManager
+                        .environmentObject(alertViewModel)
                 }
             }
             .onAppear {

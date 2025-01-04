@@ -3,13 +3,14 @@ import Foundation
 
 struct InventoryManagementView: View {
     @Environment(\.managedObjectContext) private var viewContext // Access Core Data context
+    @EnvironmentObject private var alertViewModel: AlertViewModel // Access AlertViewModel from the environment
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) { // Increased spacing between cards for better readability
                 // Inventory Overview Card
                 cardView {
-                    NavigationLink(destination: InventoryOverviewView(context: viewContext)) {
+                    NavigationLink(destination: InventoryOverviewView(context: viewContext, alertViewModel: alertViewModel)) {
                         VStack(alignment: .leading, spacing: 12) {
                             SettingsItem(icon: "tray.full.fill", title: "Inventory Overview", color: .blue)
                             Text("View and manage all inventory items, including quantities and assignments.")
@@ -22,7 +23,7 @@ struct InventoryManagementView: View {
 
                 // Reports Card
                 cardView {
-                    NavigationLink(destination: InventoryReportsView(context: viewContext)) {
+                    NavigationLink(destination: InventoryReportsView(context: viewContext, alertViewModel: alertViewModel)) {
                         VStack(alignment: .leading, spacing: 12) {
                             SettingsItem(icon: "doc.text.fill", title: "Inventory Reports", color: .purple)
                             Text("Generate detailed reports on inventory usage and stock levels.")
@@ -32,6 +33,8 @@ struct InventoryManagementView: View {
                         }
                     }
                 }
+
+                // Analytics Dashboard Card
                 cardView {
                     NavigationLink(destination: AnalyticsDashboardView(context: viewContext)) {
                         VStack(alignment: .leading, spacing: 12) {

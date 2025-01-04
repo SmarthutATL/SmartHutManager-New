@@ -3,6 +3,7 @@ import CoreData
 
 struct InventoryOverviewView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var alertViewModel: AlertViewModel // Access AlertViewModel from the environment
     @StateObject private var viewModel: InventoryViewModel
     @State private var searchQuery: String = ""
     @State private var sortOption: SortOption = .name(ascending: true)
@@ -14,8 +15,8 @@ struct InventoryOverviewView: View {
     @State private var isAddingNewItem = false
     @State private var isEditingThresholds = false
 
-    init(context: NSManagedObjectContext) {
-        _viewModel = StateObject(wrappedValue: InventoryViewModel(context: context))
+    init(context: NSManagedObjectContext, alertViewModel: AlertViewModel) {
+        _viewModel = StateObject(wrappedValue: InventoryViewModel(context: context, alertViewModel: alertViewModel))
     }
 
     var body: some View {

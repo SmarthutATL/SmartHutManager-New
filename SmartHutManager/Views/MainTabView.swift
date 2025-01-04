@@ -66,6 +66,7 @@ struct MainTabView: View {
                         Label("More", systemImage: "gearshape.fill")
                     }
             }
+
         }
         .tint(Color.blue) // Selected tab color: Always blue
         .onAppear {

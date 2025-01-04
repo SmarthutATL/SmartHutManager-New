@@ -14,10 +14,12 @@ class InventoryViewModel: ObservableObject {
     @Published var selectedFilter: InventoryFilter = .all // Current filter for inventory view
 
     private var context: NSManagedObjectContext
+    private var alertViewModel: AlertViewModel
 
     // Initialize with the CoreData context
-    init(context: NSManagedObjectContext) {
+    init(context: NSManagedObjectContext, alertViewModel: AlertViewModel) {
         self.context = context
+        self.alertViewModel = alertViewModel
         loadInventoryItems()
         loadTradesmen()
         loadCategories()
@@ -136,6 +138,14 @@ class InventoryViewModel: ObservableObject {
     func deleteItem(_ item: Inventory) {
         context.delete(item)
         saveContext()
+    }
+    
+    
+    func checkLowStockItems() {
+        let lowStockItems = inventoryItems.filter { $0.quantity <= $0.lowStockThreshold }
+        for item in lowStockItems {
+            alertViewModel.addAlert("Low stock on \(item.name ?? "Unknown Item")")
+        }
     }
 
     // Get inventory by tradesman

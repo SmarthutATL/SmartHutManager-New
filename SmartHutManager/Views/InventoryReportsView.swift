@@ -5,6 +5,7 @@ import CoreData
 struct InventoryReportsView: View {
     let context: NSManagedObjectContext
     @StateObject private var viewModel: InventoryViewModel
+    @EnvironmentObject private var alertViewModel: AlertViewModel
     @EnvironmentObject private var authViewModel: AuthViewModel
     @State private var selectedFilter: String? = nil
     @State private var reportItems: [Inventory] = []
@@ -13,9 +14,9 @@ struct InventoryReportsView: View {
     @State private var exportURL: URL?
     @State private var showScheduleDialog: Bool = false
 
-    init(context: NSManagedObjectContext) {
+    init(context: NSManagedObjectContext, alertViewModel: AlertViewModel) {
         self.context = context
-        _viewModel = StateObject(wrappedValue: InventoryViewModel(context: context))
+        _viewModel = StateObject(wrappedValue: InventoryViewModel(context: context, alertViewModel: alertViewModel))
     }
 
     var body: some View {
