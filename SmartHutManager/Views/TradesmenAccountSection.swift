@@ -94,7 +94,7 @@ struct TradesmanAccountSection: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "paperplane.fill")
                                     .foregroundColor(.white)
-                                Text("Send Company Info")
+                                Text("Send CompanyID to Technician")
                                     .font(.body)
                                     .fontWeight(.medium)
                                     .foregroundColor(.white)
