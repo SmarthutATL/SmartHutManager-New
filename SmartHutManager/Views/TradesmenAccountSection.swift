@@ -16,6 +16,8 @@ struct TradesmanAccountSection: View {
     @State private var userName: String? = nil
     @State private var userRole: String? = nil
     @State private var userFullName: String? = nil // Update to hold the full name
+    @State private var companyName: String? = nil
+    @State private var companyLogo: String = "smarthut_logo" // Default to the same logo as SplashScreenView
     
 
     var body: some View {
@@ -44,42 +46,85 @@ struct TradesmanAccountSection: View {
 
                 Divider()
 
-                // Display the Company ID
+                // Display the Company Information
                 if isLoading {
                     ProgressView()
                 } else if let companyID = companyID {
-                    HStack {
-                        Text("Company ID:")
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        Text(companyID)
-                            .font(.body)
-                            .foregroundColor(.secondary)
+                    VStack(alignment: .center, spacing: 12) {
+                        // Company Logo
+                        Image(companyLogo)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 80, height: 80)
+                            .cornerRadius(12) // Match the container's roundness
+                            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
 
-                        Spacer()
+                        // Company Name
+                        if let name = companyName {
+                            Text(name)
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.center)
+                                .lineLimit(2)
+                        }
 
-                        // Button to send Company ID via email
+                        // Company ID Card
+                        VStack(spacing: 4) {
+                            Text("Company ID")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(companyID)
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.primary)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity) // Stretch to match width
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(UIColor.systemBackground))
+                                .shadow(color: Color.black.opacity(0.1), radius: 3, x: 0, y: 2)
+                        )
+                        .padding(.horizontal)
+
+                        // Send Email Button
                         Button(action: {
                             sendCompanyIDEmail(to: "technician@example.com", companyID: companyID)
                         }) {
-                            HStack(spacing: 4) {
+                            HStack(spacing: 8) {
                                 Image(systemName: "paperplane.fill")
-                                    .foregroundColor(.blue)
-                                Text("Send")
+                                    .foregroundColor(.white)
+                                Text("Send Company Info")
                                     .font(.body)
-                                    .foregroundColor(.blue)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
                             }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color.blue)
+                            .cornerRadius(8)
+                            .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
                         }
+                        .padding(.top, 8)
                     }
                     .padding()
+                    .frame(maxWidth: .infinity) // Makes the container stretch to screen width
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(UIColor.secondarySystemBackground))
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    )
+                    .cornerRadius(12)
+                    .padding(.horizontal) // Adds padding around the edges of the screen
                 } else {
-                    Text("Company ID not available.")
+                    Text("Company information not available.")
+                        .font(.callout)
                         .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
                         .padding()
+                        .frame(maxWidth: .infinity)
                 }
-
-                Divider()
-
+                
                 // Personal Information Section
                 VStack(alignment: .leading, spacing: 16) {
                     if isPersonalInfoVisible {
@@ -142,43 +187,47 @@ struct TradesmanAccountSection: View {
             DispatchQueue.main.async {
                 if let error = error {
                     print("[Error] Fetching user data failed: \(error.localizedDescription)")
-                    self.companyID = nil
-                    self.userFullName = nil
-                    self.userRole = nil
-                    if let tradesman = self.tradesman {
-                        tradesman.phoneNumber = nil
-                        tradesman.address = nil
-                        tradesman.email = nil
-                    }
+                    self.resetUserData()
                 } else if let snapshot = snapshot, let document = snapshot.documents.first {
                     let data = document.data()
+                    print("Fetched Data: \(data)") // Log the entire document data
+                    
                     self.companyID = data["companyID"] as? String
+                    self.companyName = data["companyName"] as? String
                     let firstName = data["firstName"] as? String
                     let lastName = data["lastName"] as? String
-                    self.userFullName = [firstName, lastName].compactMap { $0 }.joined(separator: " ")
-                    self.userRole = data["role"] as? String
                     
+                    self.userFullName = [firstName, lastName].compactMap { $0 }.joined(separator: " ")
+                    print("Set userFullName: \(self.userFullName ?? "Unknown Name")")
+                    
+                    self.userRole = data["role"] as? String
+
                     // Update tradesman properties
                     if let tradesman = self.tradesman {
                         tradesman.phoneNumber = data["phoneNumber"] as? String
                         tradesman.address = data["address"] as? String
                         tradesman.email = data["email"] as? String
                     }
-
-                    print("Data fetched successfully: CompanyID = \(self.companyID ?? "N/A"), Full Name = \(self.userFullName ?? "N/A"), Role = \(self.userRole ?? "N/A")")
+                    
+                    print("Data fetched successfully: \(self.userFullName ?? "Unknown Name")")
                 } else {
                     print("[Error] No matching user found for email: \(email)")
-                    self.companyID = nil
-                    self.userFullName = nil
-                    self.userRole = nil
-                    if let tradesman = self.tradesman {
-                        tradesman.phoneNumber = nil
-                        tradesman.address = nil
-                        tradesman.email = nil
-                    }
+                    self.resetUserData()
                 }
                 self.isLoading = false
             }
+        }
+    }
+
+    private func resetUserData() {
+        self.companyID = nil
+        self.companyName = nil
+        self.userFullName = nil
+        self.userRole = nil
+        if let tradesman = self.tradesman {
+            tradesman.phoneNumber = nil
+            tradesman.address = nil
+            tradesman.email = nil
         }
     }
 
