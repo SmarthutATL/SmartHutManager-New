@@ -36,7 +36,7 @@ struct ContentView: View {
                                 alertViewModel.markAlertsAsRead()
                             }
                         )
-                        .padding(.trailing, 80) // Adjust horizontal position
+                        .padding(.trailing, 60) // Adjust horizontal position
                         .padding(.top, geometry.safeAreaInsets.top + 60) // Position below the status bar area
                     }
                     Spacer()

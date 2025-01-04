@@ -6,48 +6,38 @@ struct TradesmenDetailView: View {
     @State private var leaderboardShineOffset: CGFloat = 250
 
     var body: some View {
-        NavigationView {
-            ZStack {
-                VStack(spacing: 20) {
-                    // Custom navigation title
-                    Text("Leaderboards")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                        .padding(.top, 20)
-                        .padding(.bottom, 10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        ScrollView {
+            VStack(spacing: 30) {
+                if let tradesman = tradesman {
+                    // Profile Section
+                    profileSection(tradesman: tradesman)
                         .padding(.horizontal)
 
-                    if let tradesman = tradesman {
-                        // Profile Section
-                        profileSection(tradesman: tradesman)
-                            .padding(.horizontal)
+                    // Points Section
+                    pointsSection(tradesman: tradesman)
+                        .padding(.horizontal)
 
-                        // Points Section
-                        pointsSection(tradesman: tradesman)
-                            .padding(.horizontal)
+                    // Badges Section
+                    badgesSection(tradesman: tradesman)
+                        .padding(.horizontal)
 
-                        // Badges Section
-                        badgesSection(tradesman: tradesman)
-                            .padding(.horizontal)
-
-                        // Actions Section
-                        actionsSection(tradesman: tradesman)
-                            .padding(.horizontal)
-                    } else {
-                        noTradesmanPlaceholder()
-                            .padding(.horizontal)
-                    }
-                }
-                .padding(.vertical)
-                .onAppear {
-                    startShineAnimation() // Start the shine animation when the view appears
+                    // Actions Section
+                    actionsSection(tradesman: tradesman)
+                        .padding(.horizontal)
+                } else {
+                    noTradesmanPlaceholder()
+                        .padding(.horizontal)
                 }
             }
-            .background(Color(.systemBackground).edgesIgnoringSafeArea(.all)) // Background adapts to dark or light mode
+            .padding(.vertical)
+            .onAppear {
+                startShineAnimation() // Start the shine animation when the view appears
+            }
         }
+        .background(Color(.systemBackground).edgesIgnoringSafeArea(.all)) // Background adapts to dark or light mode
+        .navigationTitle("Technician Leaderboards")
+        .navigationBarTitleDisplayMode(.inline)
     }
-
 
     // MARK: - Profile Section
     private func profileSection(tradesman: Tradesmen) -> some View {
