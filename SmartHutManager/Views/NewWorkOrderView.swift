@@ -90,11 +90,8 @@ struct NewWorkOrderView: View {
             .environment(\.managedObjectContext, viewContext)
         }
         .sheet(isPresented: $isShowingCustomerList) {
-            CRMView()
+            CustomerPickerView(selectedCustomer: $selectedCustomer)
                 .environment(\.managedObjectContext, viewContext)
-                .onDisappear {
-                    print("Customer list dismissed. Selected: \(selectedCustomer?.name ?? "None")")
-                }
         }
     }
 
