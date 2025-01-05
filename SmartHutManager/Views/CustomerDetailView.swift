@@ -176,30 +176,40 @@ struct CustomerDetailView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.primary) // Adaptable text color
                 .padding(.vertical)
-            
+
             if let workOrders = customer.workOrders?.allObjects as? [WorkOrder], !workOrders.isEmpty {
-                ForEach(workOrders, id: \.objectID) { workOrder in
-                    NavigationLink(destination: WorkOrderDetailView(workOrder: workOrder)) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("#\(workOrder.workOrderNumber)")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text("Job: \(workOrder.category ?? "Unknown Category")")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                            Text("Date: \(formattedDate(workOrder.date))")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                            Text("Status: \(workOrder.status ?? "Unknown")")
-                                .font(.caption)
-                                .foregroundColor(.gray)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: -50) { // Negative spacing for overlapping cards
+                        ForEach(workOrders, id: \.objectID) { workOrder in
+                            GeometryReader { geometry in
+                                NavigationLink(destination: WorkOrderDetailView(workOrder: workOrder)) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("#\(workOrder.workOrderNumber)")
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                        Text("Job: \(workOrder.category ?? "Unknown Category")")
+                                            .font(.headline)
+                                            .foregroundColor(.secondary)
+                                        Text("Date: \(formattedDate(workOrder.date))")
+                                            .font(.subheadline)
+                                            .foregroundColor(.gray)
+                                        Text("Status: \(workOrder.status ?? "Unknown")")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                    .padding()
+                                    .background(Color(UIColor.secondarySystemBackground))
+                                    .cornerRadius(15)
+                                    .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 4)
+                                    .scaleEffect(calculateScaleEffect(geometry: geometry)) // Dynamic scaling effect
+                                    .animation(.spring(response: 0.4, dampingFraction: 0.8, blendDuration: 0.5), value: geometry.frame(in: .global).minX)
+                                    .frame(width: 250) // Card width
+                                }
+                            }
+                            .frame(width: 250, height: 200) // GeometryReader frame size
                         }
-                        .padding()
-                        .background(Color(UIColor.secondarySystemBackground))
-                        .cornerRadius(10)
-                        .shadow(radius: 5)
-                        .frame(maxWidth: .infinity)
                     }
+                    .padding(.horizontal, 20) // Add horizontal padding
                 }
             } else {
                 Text("No work orders available")
@@ -209,6 +219,15 @@ struct CustomerDetailView: View {
         }
     }
 
+    // MARK: - Scale Effect Calculation
+    private func calculateScaleEffect(geometry: GeometryProxy) -> CGFloat {
+        let midX = UIScreen.main.bounds.width / 2 // Center of the screen
+        let cardMidX = geometry.frame(in: .global).midX
+        let distanceFromCenter = abs(midX - cardMidX)
+        let maxDistance: CGFloat = 200 // Distance at which the scale effect stops
+        let scale = max(1 - (distanceFromCenter / maxDistance), 0.85)
+        return scale // Minimum scale of 85%
+    }
 
     // MARK: - Date Formatting Function
     private func formattedDate(_ date: Date?) -> String {
