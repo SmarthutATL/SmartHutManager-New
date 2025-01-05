@@ -83,19 +83,37 @@ struct NewWorkOrderView: View {
                 takeInventorySnapshot()
             }
         }
+        .sheet(isPresented: $isShowingAddCustomerView) {
+            AddCustomerView { newCustomer in
+                self.selectedCustomer = newCustomer
+            }
+            .environment(\.managedObjectContext, viewContext)
+        }
+        .sheet(isPresented: $isShowingCustomerList) {
+            CRMView()
+                .environment(\.managedObjectContext, viewContext)
+                .onDisappear {
+                    print("Customer list dismissed. Selected: \(selectedCustomer?.name ?? "None")")
+                }
+        }
     }
 
     // MARK: - Sections
     private var assignCustomerSection: some View {
         Section(header: Text("Assign Customer")) {
-            Button(action: { isShowingAddCustomerView.toggle() }) {
+            Button(action: {
+                isShowingAddCustomerView.toggle()
+                print("Add New Customer Tapped: \(isShowingAddCustomerView)")
+            }) {
                 HStack {
-                    Image(systemName: "plus.circle.fill")
-                        .foregroundColor(.blue)
+                    Image(systemName: "plus.circle.fill").foregroundColor(.blue)
                     Text("Add New Customer")
                 }
             }
-            Button(action: { isShowingCustomerList.toggle() }) {
+            Button(action: {
+                isShowingCustomerList.toggle()
+                print("Select Customer Tapped: \(isShowingCustomerList)")
+            }) {
                 HStack {
                     Text(selectedCustomer?.name ?? "Select Customer")
                     Spacer()

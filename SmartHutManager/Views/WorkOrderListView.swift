@@ -7,9 +7,7 @@ struct WorkOrderListView: View {
     
     // Fetch work orders with minimal data to optimize load times
     @FetchRequest(
-        entity: WorkOrder.entity(),
-        sortDescriptors: [NSSortDescriptor(keyPath: \WorkOrder.date, ascending: true)],
-        predicate: NSPredicate(format: "date != nil"), // Only fetch work orders with a date
+        fetchRequest: WorkOrderListView.configureFetchRequest(),
         animation: .default
     )
     private var workOrders: FetchedResults<WorkOrder>
@@ -221,6 +219,9 @@ struct WorkOrderListView: View {
                                 }
                             }
                         }
+                        .onAppear {
+                            preloadNextBatchIfNeeded(for: workOrder)
+                        }
                         .swipeActions(edge: .trailing) {
                             if !isEditing {
                                 // Message Button
@@ -277,6 +278,15 @@ struct WorkOrderListView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Configure Fetch Request with Batch Size
+    static func configureFetchRequest() -> NSFetchRequest<WorkOrder> {
+        let request = WorkOrder.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \WorkOrder.date, ascending: true)]
+        request.predicate = NSPredicate(format: "date != nil")
+        request.fetchBatchSize = 20 // Enable batching
+        return request
     }
 
     // Generate category buttons for ActionSheet
@@ -379,6 +389,25 @@ struct WorkOrderListView: View {
             try viewContext.save() // Save changes to Core Data after deletion
         } catch {
             print("Failed to delete work order: \(error.localizedDescription)")
+        }
+    }
+
+    // Preload next batch if needed
+    private func preloadNextBatchIfNeeded(for workOrder: WorkOrder) {
+        guard let index = workOrders.firstIndex(of: workOrder) else { return }
+        let thresholdIndex = workOrders.index(workOrders.endIndex, offsetBy: -5)
+        if index >= thresholdIndex {
+            fetchMoreWorkOrders()
+        }
+    }
+
+    // Fetch more work orders
+    private func fetchMoreWorkOrders() {
+        let request = WorkOrderListView.configureFetchRequest()
+        do {
+            let _ = try viewContext.fetch(request)
+        } catch {
+            print("Error fetching more work orders: \(error.localizedDescription)")
         }
     }
 
