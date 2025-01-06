@@ -3,31 +3,31 @@ import Foundation
 class AlertViewModel: ObservableObject {
     @Published var alerts: [String] = []
     @Published var alertMessage: String = " "
-    @Published var hasNewAlert: Bool = false // Add this property
+    @Published var hasNewAlert: Bool = false
+    @Published var alertCount: Int = 0 // Add this property
 
-    var alertCount: Int {
-        alerts.count
-    }
-    
     func addAlert(_ alert: String) {
         alerts.append(alert)
-        hasNewAlert = true // Mark as new alert
+        alertCount = alerts.count // Update the alert count
+        hasNewAlert = true
+        print("Alert added: \(alert), hasNewAlert: \(hasNewAlert)")
     }
-    
+
     func removeAlert(at index: Int) {
         alerts.remove(at: index)
+        alertCount = alerts.count // Update the alert count
         if alerts.isEmpty {
             hasNewAlert = false // No more new alerts
         }
     }
-    
+
     func markAlertsAsRead() {
-        hasNewAlert = false // Reset new alert indicator
-        alerts.removeAll()
+        hasNewAlert = false
     }
-   
-func clearAllAlerts() {
+
+    func clearAllAlerts() {
         alerts.removeAll()
+        alertCount = 0 // Reset the alert count
         hasNewAlert = false
     }
 }

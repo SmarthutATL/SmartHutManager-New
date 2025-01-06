@@ -3,6 +3,7 @@ import CoreData
 
 struct EditThresholdsView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var alertViewModel: AlertViewModel
     @FetchRequest(
         entity: Inventory.entity(),
         sortDescriptors: [NSSortDescriptor(keyPath: \Inventory.name, ascending: true)],
@@ -55,6 +56,12 @@ struct EditThresholdsView: View {
     private func saveChanges() {
         do {
             try viewContext.save()
+            
+            // Trigger low stock check
+            let inventoryViewModel = InventoryViewModel(context: viewContext, alertViewModel: alertViewModel)
+            inventoryViewModel.checkLowStockItems()
+            
+            print("Changes saved successfully, checking low stock...")
         } catch {
             print("Failed to save changes: \(error)")
         }

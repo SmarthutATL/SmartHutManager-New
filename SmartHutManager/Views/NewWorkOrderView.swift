@@ -477,9 +477,6 @@ struct NewWorkOrderView: View {
         } else if tasks.isEmpty {
             showValidationError(message: "Please add at least one task.")
             return false
-        } else if selectedMaterials.isEmpty {
-            showValidationError(message: "Please select at least one material.")
-            return false
         } else if selectedTradesmen.isEmpty {
             showValidationError(message: "Please assign at least one tradesman.")
             return false
