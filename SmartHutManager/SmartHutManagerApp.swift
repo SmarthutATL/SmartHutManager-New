@@ -19,11 +19,14 @@ struct SmartHutManagerApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @State private var showSplash = true
     @AppStorage("isDarkMode") private var isDarkMode: Bool = true // Appearance preference
-    @StateObject private var alertViewModel = AlertViewModel()
+    @StateObject private var alertViewModel: AlertViewModel
 
     init() {
         print("Initializing SmartHutManagerApp")
 
+        let context = PersistenceController.shared.container.viewContext
+        _alertViewModel = StateObject(wrappedValue: AlertViewModel(context: context))
+        
         // Configure Firebase
         FirebaseApp.configure()
         print("Firebase configured")

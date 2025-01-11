@@ -28,12 +28,18 @@ struct AlertsView: View {
                 } else {
                     // List of Alerts
                     List {
-                        ForEach(alertViewModel.alerts.indices, id: \.self) { index in
+                        ForEach(alertViewModel.alerts) { alert in
                             HStack {
-                                Text(alertViewModel.alerts[index])
+                                Text(alert.message ?? "No message")
                                     .font(.body)
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(alert.isNew ? .blue : .primary)
                                 Spacer()
+                                if alert.isNew {
+                                    Text("NEW")
+                                        .font(.caption)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.red)
+                                }
                             }
                         }
                         .onDelete(perform: removeAlert)
