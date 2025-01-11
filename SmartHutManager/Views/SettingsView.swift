@@ -122,7 +122,7 @@ struct SettingsView: View {
     }
     
     private func subscriptionPlanSection() -> some View {
-        cardView(isGold: true) {
+        cardView {
             Button(action: {
                 isShowingSubscriptionPlanView.toggle()
             }) {
@@ -135,7 +135,7 @@ struct SettingsView: View {
     }
     
     private func customBrandingSection() -> some View {
-        cardView(isGold: true) {
+        cardView {
             NavigationLink(destination: CustomBrandingView()) {
                 SettingsItem(icon: "paintbrush.fill", title: "Custom Branding", color: .purple)
                     .foregroundColor(isDarkMode ? .white : .black)
@@ -167,7 +167,7 @@ struct SettingsView: View {
     }
     
     private func technicianManagementSection() -> some View {
-        cardView(isGold: true) {
+        cardView {
             Button(action: {
                 authenticateUser(for: .manageTechnicians)
             }) {
@@ -181,7 +181,7 @@ struct SettingsView: View {
     }
     
     private func technicianPerformanceSection() -> some View {
-        cardView(isGold: true) {
+        cardView {
             NavigationLink(destination: TechnicianPerformanceView()) {
                 SettingsItem(icon: "chart.bar.fill", title: "Technician Performance", color: .orange)
                     .foregroundColor(isDarkMode ? .white : .black)
