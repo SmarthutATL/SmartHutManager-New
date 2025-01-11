@@ -24,22 +24,24 @@ struct ContentView: View {
             }
 
             // Persistent Alert Button Overlay
-            GeometryReader { geometry in
-                VStack {
-                    HStack {
+            if authViewModel.isUserSignedIn {
+                GeometryReader { geometry in
+                    VStack {
+                        HStack {
+                            Spacer()
+                            AlertButton(
+                                alertCount: alertViewModel.alertCount,
+                                hasNewAlert: alertViewModel.hasNewAlert,
+                                onTap: {
+                                    showAlerts = true
+                                    alertViewModel.markAlertsAsRead()
+                                }
+                            )
+                            .padding(.trailing, 60) // Adjust horizontal position
+                            .padding(.top, geometry.safeAreaInsets.top + 65) // Position below the status bar area
+                        }
                         Spacer()
-                        AlertButton(
-                            alertCount: alertViewModel.alertCount,
-                            hasNewAlert: alertViewModel.hasNewAlert,
-                            onTap: {
-                                showAlerts = true
-                                alertViewModel.markAlertsAsRead()
-                            }
-                        )
-                        .padding(.trailing, 60) // Adjust horizontal position
-                        .padding(.top, geometry.safeAreaInsets.top + 60) // Position below the status bar area
                     }
-                    Spacer()
                 }
             }
         }

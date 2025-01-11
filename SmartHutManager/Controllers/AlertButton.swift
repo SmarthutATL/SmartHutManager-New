@@ -15,7 +15,7 @@ struct AlertButton: View {
             ZStack(alignment: .topTrailing) {
                 // Bell Icon with blinking animation
                 Image(systemName: "bell.fill")
-                    .font(.title)
+                    .font(.title2) // Changed from .title to .title2 for a slightly smaller size
                     .foregroundColor(isBlinking ? Color.red : Color.blue)
                     .animation(
                         isBlinking ? .easeInOut(duration: 1).repeatForever(autoreverses: true) : .default,

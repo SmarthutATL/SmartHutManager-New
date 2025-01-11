@@ -70,6 +70,9 @@ struct SmartHutManagerApp: App {
                 if showSplash {
                     SplashScreenView()
                         .transition(.opacity)
+                        .onAppear {
+                            handleSplashTransition()
+                        }
                 } else {
                     ContentView()
                         .environment(\.managedObjectContext, persistenceController.container.viewContext)
@@ -78,19 +81,30 @@ struct SmartHutManagerApp: App {
                         .environmentObject(alertViewModel)
                 }
             }
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
-                    withAnimation {
-                        showSplash = false
-                    }
-                }
-            }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .background {
                     handleScenePhaseChange()
                 }
             }
             .preferredColorScheme(isDarkMode ? .dark : .light) // Apply appearance preference
+        }
+    }
+
+    private func handleSplashTransition() {
+        if authViewModel.isUserSignedIn {
+            // Skip splash screen faster if user is signed in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                withAnimation {
+                    showSplash = false
+                }
+            }
+        } else {
+            // Show splash screen briefly before navigating to sign-in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                withAnimation {
+                    showSplash = false
+                }
+            }
         }
     }
 
