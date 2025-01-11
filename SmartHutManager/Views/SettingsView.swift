@@ -65,11 +65,16 @@ struct SettingsView: View {
                     // Manage Job Categories Section
                     manageJobCategoriesSection()
                     
+                    //New Marketing Features Section
+                    marketingFeaturesSection()
+                    
                     // Manage Payment Methods Section
                     managePaymentMethodsSection()
                     
                     // Notification Settings Section
                     notificationSettingsSection()
+                    
+                
                     
                     // Sign Out Section
                     signOutSection()
@@ -193,6 +198,15 @@ struct SettingsView: View {
         cardView {
             NavigationLink(destination: ManageJobCategoriesView()) {
                 SettingsItem(icon: "folder.fill", title: "Manage Job Categories", color: .orange)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+
+    private func marketingFeaturesSection() -> some View {
+        cardView {
+            NavigationLink(destination: MarketingToolsView(context: viewContext)) {
+                SettingsItem(icon: "megaphone.fill", title: "Marketing Tools", color: .orange)
                     .foregroundColor(isDarkMode ? .white : .black)
             }
         }
