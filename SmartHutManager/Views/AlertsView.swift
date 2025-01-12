@@ -7,69 +7,75 @@ struct AlertsView: View {
         NavigationView {
             VStack {
                 if alertViewModel.alerts.isEmpty {
-                    // Empty State View
-                    VStack {
-                        Spacer()
-                        Image(systemName: "bell.slash.fill")
-                            .font(.system(size: 64))
-                            .foregroundColor(.gray)
-                        Text("No Alerts")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.gray)
-                            .padding(.top, 8)
-                        Text("You're all caught up!")
-                            .font(.body)
-                            .foregroundColor(.gray)
-                            .padding(.top, 4)
-                        Spacer()
-                    }
-                    .padding()
+                    emptyStateView
                 } else {
-                    // List of Alerts
-                    List {
-                        ForEach(alertViewModel.alerts) { alert in
-                            HStack {
-                                Text(alert.message ?? "No message")
-                                    .font(.body)
-                                    .foregroundColor(alert.isNew ? .blue : .primary)
-                                Spacer()
-                                if alert.isNew {
-                                    Text("NEW")
-                                        .font(.caption)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(.red)
-                                }
-                            }
-                        }
-                        .onDelete(perform: removeAlert)
-                    }
-                    .listStyle(PlainListStyle())
+                    alertsListView
                 }
 
-                // Clear All Button
                 if !alertViewModel.alerts.isEmpty {
-                    Button(action: {
-                        alertViewModel.clearAllAlerts()
-                    }) {
-                        Text("Clear All")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.red)
-                            .cornerRadius(10)
-                            .padding()
-                    }
+                    clearAllButton
                 }
             }
             .navigationTitle("Alerts")
         }
     }
 
-    private func removeAlert(at offsets: IndexSet) {
-        offsets.forEach { index in
-            alertViewModel.removeAlert(at: index)
+    // MARK: - Empty State View
+    private var emptyStateView: some View {
+        VStack {
+            Spacer()
+            Image(systemName: "bell.slash.fill")
+                .font(.system(size: 64))
+                .foregroundColor(.gray)
+            Text("No Alerts")
+                .font(.title2)
+                .fontWeight(.semibold)
+                .foregroundColor(.gray)
+                .padding(.top, 8)
+            Text("You're all caught up!")
+                .font(.body)
+                .foregroundColor(.gray)
+                .padding(.top, 4)
+            Spacer()
+        }
+        .padding()
+    }
+
+    // MARK: - Alerts List View
+    private var alertsListView: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                ForEach(alertViewModel.alerts.indices, id: \.self) { index in
+                    AlertCardView(alert: alertViewModel.alerts[index])
+                        .contextMenu {
+                            Button("Mark as Read") {
+                                alertViewModel.alerts[index].isNew = false
+                                alertViewModel.saveContext()
+                            }
+                            Button("Delete") {
+                                alertViewModel.removeAlert(at: index)
+                            }
+                        }
+                        .padding(.horizontal)
+                }
+            }
+            .padding(.vertical)
+        }
+    }
+
+    // MARK: - Clear All Button
+    private var clearAllButton: some View {
+        Button(action: {
+            alertViewModel.clearAllAlerts()
+        }) {
+            Text("Clear All")
+                .font(.headline)
+                .foregroundColor(.white)
+                .padding()
+                .frame(maxWidth: .infinity)
+                .background(Color.red)
+                .cornerRadius(10)
+                .padding(.horizontal)
         }
     }
 }

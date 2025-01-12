@@ -26,9 +26,9 @@ class TradesmenManager {
             // Fetch existing tradesmen from Core Data to avoid duplicates
             let existingTradesmen = self.fetchTradesmen(context: context)
             
+            let dispatchGroup = DispatchGroup() // Create a DispatchGroup to manage async calls
+            
             context.perform {
-                let dispatchGroup = DispatchGroup()
-                
                 for tradesmanDocument in tradesmenDocuments {
                     let tradesmanData = tradesmanDocument.data()
                     
@@ -38,7 +38,7 @@ class TradesmenManager {
                         continue
                     }
                     
-                    // Enter the DispatchGroup for each asynchronous Firestore call
+                    // Enter the dispatch group for each user data fetch
                     dispatchGroup.enter()
                     
                     // Fetch additional user data from the `users` collection
@@ -68,14 +68,14 @@ class TradesmenManager {
                         let jobCompletionStreak = tradesmanData["jobCompletionStreak"] as? Int ?? 0
                         
                         // Check if the tradesman already exists in Core Data
-                        if !existingTradesmen.contains(where: { $0.email == email }) {
+                        if !existingTradesmen.contains(where: { $0.email?.lowercased() == email.lowercased() }) {
                             // Add new tradesman to Core Data
                             let newTradesman = Tradesmen(context: context)
                             newTradesman.name = firstName
                             newTradesman.jobTitle = jobTitle
                             newTradesman.phoneNumber = phoneNumber
                             newTradesman.address = address
-                            newTradesman.email = email
+                            newTradesman.email = email.lowercased() // Ensure email is stored in lowercase
                             newTradesman.points = Int32(points)
                             newTradesman.badges = badges as NSArray
                             newTradesman.jobCompletionStreak = Int32(jobCompletionStreak)
@@ -83,17 +83,16 @@ class TradesmenManager {
                             print("Added tradesman: \(firstName) with role: \(role)")
                         }
                         
-                        // Leave the DispatchGroup after completing this Firestore call
-                        dispatchGroup.leave()
+                        dispatchGroup.leave() // Leave the dispatch group after completing the Firestore call
                     }
                 }
                 
                 // Notify when all Firestore calls have completed
                 dispatchGroup.notify(queue: .main) {
                     do {
-                        try context.save()
+                        try context.save() // Save the Core Data context after all tradesmen are processed
                         completion(nil)
-                        print("All tradesmen saved successfully.")
+                        print("All tradesmen synced and saved successfully.")
                     } catch {
                         completion(error)
                         print("Error saving tradesmen: \(error.localizedDescription)")
@@ -102,7 +101,6 @@ class TradesmenManager {
             }
         }
     }
-
     // MARK: - Fetch Tradesmen from Core Data
     func fetchTradesmen(context: NSManagedObjectContext) -> [Tradesmen] {
         let fetchRequest: NSFetchRequest<Tradesmen> = Tradesmen.fetchRequest()

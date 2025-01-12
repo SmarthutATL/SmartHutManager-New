@@ -60,7 +60,7 @@ class AlertViewModel: ObservableObject {
     }
 
     // MARK: - Save Context
-    private func saveContext() {
+    func saveContext() {
         do {
             try context.save()
         } catch {

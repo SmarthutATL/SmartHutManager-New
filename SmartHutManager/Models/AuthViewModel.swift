@@ -43,16 +43,18 @@ class AuthViewModel: ObservableObject {
                 self?.isLoading = false
             } else if let document = document, document.exists {
                 if let data = document.data(),
-                   let role = data["role"] as? String {
+                   let role = data["role"] as? String,
+                   let email = data["email"] as? String { // Ensure email is fetched
                     DispatchQueue.main.async {
-                        print("[Firestore] User Role: \(role)")
+                        print("[Firestore] User Role: \(role), Email: \(email)")
                         self?.userRole = role
+                        self?.currentUserEmail = email.lowercased() // Set the email
                         self?.isUserSignedIn = true
                         self?.isLoading = false
                     }
                 } else {
-                    print("[Firestore Error] Role field is missing or invalid.")
-                    self?.errorMessage = "Role information is missing or invalid. Please contact support."
+                    print("[Firestore Error] Role or email field is missing or invalid.")
+                    self?.errorMessage = "Role or email information is missing or invalid. Please contact support."
                     self?.isLoading = false
                 }
             } else {
@@ -62,7 +64,7 @@ class AuthViewModel: ObservableObject {
             }
         }
     }
-
+    
     // MARK: - Sign In
     func signIn(email: String, password: String) {
         print("[Auth] Attempting sign-in with email: \(email)")
