@@ -224,13 +224,21 @@ struct JobSchedulerView: View {
         }
     }
     
-    // MARK: - Helper Methods
+    // Displayed Work Orders: Filtered by assigned tradesmen
     private var displayedWorkOrders: [DisplayableWorkOrder] {
-        return workOrders.map { workOrder in
+        let technicianEmail = authViewModel.currentUserEmail?.lowercased() ?? ""
+        return workOrders.filter { workOrder in
+            if let tradesmenSet = workOrder.tradesmen as? Set<Tradesmen> {
+                return tradesmenSet.contains { $0.email?.lowercased() == technicianEmail }
+            }
+            return false
+        }
+        .map { workOrder in
             DisplayableWorkOrder(workOrder: workOrder, isHidden: false)
         }
     }
-    
+
+    // Work Orders for the Selected Date: Filtered by date and assigned tradesmen
     private var workOrdersForSelectedDate: [DisplayableWorkOrder] {
         return displayedWorkOrders.filter { displayableOrder in
             if let workOrderDate = displayableOrder.workOrder.date {
