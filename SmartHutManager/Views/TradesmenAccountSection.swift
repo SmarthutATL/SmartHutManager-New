@@ -190,7 +190,7 @@ struct TradesmanAccountSection: View {
                     self.resetUserData()
                 } else if let snapshot = snapshot, let document = snapshot.documents.first {
                     let data = document.data()
-                    print("Fetched Data: \(data)") // Log the entire document data
+                    print("Fetched Data: \(data)")
                     
                     self.companyID = data["companyID"] as? String
                     self.companyName = data["companyName"] as? String
@@ -202,14 +202,12 @@ struct TradesmanAccountSection: View {
                     
                     self.userRole = data["role"] as? String
 
-                    // Update tradesman properties
+                    // Ensure tradesman properties are updated
                     if let tradesman = self.tradesman {
                         tradesman.phoneNumber = data["phoneNumber"] as? String
                         tradesman.address = data["address"] as? String
                         tradesman.email = data["email"] as? String
                     }
-                    
-                    print("Data fetched successfully: \(self.userFullName ?? "Unknown Name")")
                 } else {
                     print("[Error] No matching user found for email: \(email)")
                     self.resetUserData()
@@ -218,7 +216,8 @@ struct TradesmanAccountSection: View {
             }
         }
     }
-
+    
+    
     private func resetUserData() {
         self.companyID = nil
         self.companyName = nil
