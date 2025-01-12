@@ -1,6 +1,5 @@
 import CoreData
 import Combine
-import CloudKit
 
 class PersistenceController {
     static let shared = PersistenceController()
@@ -9,9 +8,9 @@ class PersistenceController {
     private let saveQueue = DispatchQueue(label: "com.smarthutmanager.saveQueue", qos: .background)
     private let saveThrottleInterval: TimeInterval = 5  // Throttle saves to reduce energy consumption
 
-    let container: NSPersistentCloudKitContainer
+    // Use `var` for container
+    var container: NSPersistentContainer
 
-    // Preview setup for SwiftUI previews
     @MainActor
     static let preview: PersistenceController = {
         let result = PersistenceController(inMemory: true)
@@ -37,18 +36,13 @@ class PersistenceController {
     }()
 
     init(inMemory: Bool = false) {
-        container = NSPersistentCloudKitContainer(name: "SmartHutManager")
+        container = NSPersistentContainer(name: "SmartHutManager")
 
         guard let description = container.persistentStoreDescriptions.first else {
             fatalError("Failed to retrieve a persistent store description.")
         }
 
-        let cloudKitOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.SmartHutATL.SmartHutManager")
-        cloudKitOptions.databaseScope = .shared
-        description.cloudKitContainerOptions = cloudKitOptions
-
         description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
 
         if inMemory {
             description.url = URL(fileURLWithPath: "/dev/null")
@@ -64,13 +58,6 @@ class PersistenceController {
 
         container.viewContext.automaticallyMergesChangesFromParent = true
         container.viewContext.mergePolicy = NSMergeByPropertyStoreTrumpMergePolicy
-
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handlePersistentStoreRemoteChange(_:)),
-            name: .NSPersistentStoreRemoteChange,
-            object: container.persistentStoreCoordinator
-        )
 
         startAutosaving(interval: 30)
     }
@@ -105,79 +92,6 @@ class PersistenceController {
             print("Context saved successfully.")
         } catch {
             print("Error saving context: \(error.localizedDescription)")
-        }
-    }
-
-    // MARK: - Handle CloudKit Sync & Background Fetch (Efficient energy use)
-    @objc private func handlePersistentStoreRemoteChange(_ notification: Notification) {
-        print("Persistent store remote change received.")
-        
-        let context = container.viewContext
-        context.perform {
-            do {
-                try context.setQueryGenerationFrom(.current)
-                if context.hasChanges {
-                    try context.save()
-                    print("Context saved after remote change.")
-                } else {
-                    print("No changes detected in context.")
-                }
-            } catch {
-                print("Failed to process remote change notification: \(error)")
-            }
-        }
-    }
-
-    // MARK: - Perform Background Sync (Runs on new background context)
-    func performBackgroundSync() {
-        let backgroundContext = container.newBackgroundContext()
-        backgroundContext.perform {
-            do {
-                try backgroundContext.save()
-                print("Background sync successful.")
-            } catch {
-                print("Failed to sync in the background: \(error)")
-            }
-        }
-    }
-
-    // MARK: - Share Data with CKShare (Reduces CloudKit impact)
-    func shareRecord(_ object: NSManagedObject, completion: @escaping (CKShare?, Error?) -> Void) {
-        let context = container.viewContext
-        let objectID = object.objectID
-
-        context.perform {
-            do {
-                let recordID = CKRecord.ID(recordName: objectID.uriRepresentation().absoluteString)
-                let record = CKRecord(recordType: object.entity.name!, recordID: recordID)
-                self.populateCKRecord(record, from: object)
-                
-                let share = CKShare(rootRecord: record)
-                share.publicPermission = .readWrite
-                
-                let operation = CKModifyRecordsOperation(recordsToSave: [record, share])
-                operation.modifyRecordsResultBlock = { result in
-                    switch result {
-                    case .success:
-                        print("Record shared successfully.")
-                        completion(share, nil)
-                    case .failure(let error):
-                        print("Error sharing record: \(error.localizedDescription)")
-                        completion(nil, error)
-                    }
-                }
-                
-                CKContainer.default().sharedCloudDatabase.add(operation)
-            }
-        }
-    }
-
-    // Populate CKRecord with Data
-    private func populateCKRecord(_ record: CKRecord, from object: NSManagedObject) {
-        for (key, _) in object.entity.attributesByName {
-            if let value = object.value(forKey: key) as? CKRecordValue {
-                record[key] = value
-            }
         }
     }
 }

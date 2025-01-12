@@ -1,136 +1,93 @@
 import Foundation
 import CoreData
-import CloudKit
+import FirebaseFirestore
 
-// MARK: - iCloud Sync Manager
-class ICloudSyncManager {
-    private let persistentContainer: NSPersistentCloudKitContainer
-    private var isSyncInProgress = false
-    private var syncDebounceTimer: Timer?
-    private var lastSyncTime: Date?
-    private let syncThrottleInterval: TimeInterval = 60  // Minimum 60 seconds between syncs
+// MARK: - Firebase Sync Manager
+class FirebaseSyncManager {
+    private let firestore = Firestore.firestore()
+    private let persistentContainer: NSPersistentContainer
 
-    init(persistentContainer: NSPersistentCloudKitContainer) {
+    init(persistentContainer: NSPersistentContainer) {
         self.persistentContainer = persistentContainer
-        setupICloudChangeListener()
     }
 
-    private func setupICloudChangeListener() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleCloudKitChanges(_:)),
-            name: .NSPersistentStoreRemoteChange,
-            object: persistentContainer.persistentStoreCoordinator
-        )
-    }
+    // MARK: - Fetch Data from Firebase and Sync with Core Data
+    func syncFromFirebase(collection: String) {
+        firestore.collection(collection).getDocuments { [weak self] (snapshot, error) in
+            guard let self = self, let documents = snapshot?.documents else {
+                print("Error fetching Firestore documents: \(error?.localizedDescription ?? "Unknown error")")
+                return
+            }
 
-    @objc private func handleCloudKitChanges(_ notification: Notification) {
-        guard !isSyncInProgress else {
-            print("Sync already in progress, skipping new sync request.")
-            return
-        }
-
-        syncDebounceTimer?.invalidate()
-        syncDebounceTimer = Timer.scheduledTimer(withTimeInterval: syncThrottleInterval, repeats: false) { [weak self] _ in
-            self?.performSync()
-        }
-    }
-
-    private func performSync() {
-        guard !isSyncInProgress else {
-            print("Sync is already in progress, avoiding duplicate sync.")
-            return
-        }
-
-        isSyncInProgress = true
-        let viewContext = persistentContainer.viewContext
-
-        viewContext.perform {
-            do {
-                try viewContext.setQueryGenerationFrom(.current)
-                viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-
-                if viewContext.hasChanges {
-                    try viewContext.save()
-                    self.lastSyncTime = Date()
-                    print("Changes saved and synced with iCloud.")
-                } else {
-                    print("No changes detected, skipping sync.")
+            let context = self.persistentContainer.viewContext
+            context.perform {
+                for document in documents {
+                    self.updateOrCreateEntity(from: document, context: context)
                 }
 
-                self.finishSync()
-
-            } catch {
-                self.logError(error, context: "performSync()")
-                self.finishSync()
+                do {
+                    try context.save()
+                    print("Core Data synced with Firebase successfully.")
+                } catch {
+                    print("Failed to save context: \(error.localizedDescription)")
+                }
             }
         }
     }
 
-    private func finishSync() {
-        isSyncInProgress = false
-        print("Sync finished successfully.")
+    private func updateOrCreateEntity(from document: QueryDocumentSnapshot, context: NSManagedObjectContext) {
+        // Example: Assuming you're syncing a JobCategoryEntity
+        guard let entityName = document.data()["entityName"] as? String else { return }
+        
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
+        fetchRequest.predicate = NSPredicate(format: "id == %@", document.documentID)
+
+        do {
+            if let existingEntity = try context.fetch(fetchRequest).first as? NSManagedObject {
+                // Update existing entity
+                for (key, value) in document.data() {
+                    existingEntity.setValue(value, forKey: key)
+                }
+            } else {
+                // Create new entity
+                let newEntity = NSEntityDescription.insertNewObject(forEntityName: entityName, into: context)
+                for (key, value) in document.data() {
+                    newEntity.setValue(value, forKey: key)
+                }
+            }
+        } catch {
+            print("Error updating/creating entity: \(error.localizedDescription)")
+        }
     }
 
-    private func logError(_ error: Error, context: String) {
-        let nsError = error as NSError
-        print("Error in \(context): \(nsError), \(nsError.userInfo)")
-    }
-
-    // MARK: - Assign to a Custom Record Zone
-    func assignToRecordZone(completion: @escaping (Error?) -> Void) {
+    // MARK: - Push Core Data Changes to Firebase
+    func syncToFirebase(entityName: String, collection: String) {
         let context = persistentContainer.viewContext
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
 
-        context.perform {
-            do {
-                // Fetch all JobCategoryEntity instances
-                let fetchRequest = NSFetchRequest<JobCategoryEntity>(entityName: "JobCategoryEntity")
-                let jobCategories = try context.fetch(fetchRequest)
-
-                for jobCategory in jobCategories {
-                    let record = CKRecord(recordType: "JobCategoryEntity", recordID: CKRecord.ID(recordName: jobCategory.objectID.uriRepresentation().absoluteString))
-                    record["name"] = jobCategory.name as CKRecordValue?
-
-                    // Create a custom zone
-                    let customZoneID = CKRecordZone.ID(zoneName: "CustomZone", ownerName: CKCurrentUserDefaultName)
-                    let customZone = CKRecordZone(zoneID: customZoneID)
-                    
-                    // Add to the private CloudKit database
-                    let privateDatabase = CKContainer.default().privateCloudDatabase
-
-                    let zoneCreationOperation = CKModifyRecordZonesOperation(recordZonesToSave: [customZone], recordZoneIDsToDelete: nil)
-                    zoneCreationOperation.modifyRecordZonesResultBlock = { result in
-                        switch result {
-                        case .success:
-                            print("Custom zone created successfully.")
-                            // Save records to the custom zone
-                            self.saveRecordToZone(record: record, database: privateDatabase, completion: completion)
-                        case .failure(let error):
-                            print("Error creating custom zone: \(error)")
-                            completion(error)
-                        }
-                    }
-                    privateDatabase.add(zoneCreationOperation)
-                }
-            } catch {
-                print("Failed to fetch JobCategoryEntity objects: \(error)")
-                completion(error)
+        do {
+            let objects = try context.fetch(fetchRequest) as? [NSManagedObject]
+            for object in objects ?? [] {
+                saveToFirestore(object: object, collection: collection)
             }
+        } catch {
+            print("Error fetching Core Data objects: \(error.localizedDescription)")
         }
     }
 
-    private func saveRecordToZone(record: CKRecord, database: CKDatabase, completion: @escaping (Error?) -> Void) {
-        let operation = CKModifyRecordsOperation(recordsToSave: [record], recordIDsToDelete: nil)
-        operation.modifyRecordsResultBlock = { result in
-            switch result {
-            case .success:
-                print("Record successfully saved to custom zone.")
-                completion(nil)
-            case .failure(let error):
-                print("Error saving record to custom zone: \(error)")
-                completion(error)
+    private func saveToFirestore(object: NSManagedObject, collection: String) {
+        var data: [String: Any] = [:]
+        for (key, _) in object.entity.attributesByName {
+            data[key] = object.value(forKey: key)
+        }
+
+        let documentID = object.value(forKey: "id") as? String ?? UUID().uuidString
+        firestore.collection(collection).document(documentID).setData(data) { error in
+            if let error = error {
+                print("Error saving to Firestore: \(error.localizedDescription)")
+            } else {
+                print("Successfully synced \(object.entity.name ?? "unknown entity") to Firestore.")
             }
         }
-        database.add(operation)
     }
 }

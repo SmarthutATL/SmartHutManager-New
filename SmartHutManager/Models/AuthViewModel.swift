@@ -23,25 +23,43 @@ class AuthViewModel: ObservableObject {
         isLoading = true
 
         if let currentUser = Auth.auth().currentUser {
-            print("[Auth] User is signed in with UID: \(currentUser.uid), email: \(currentUser.email ?? "unknown email")")
-            currentUser.getIDTokenForcingRefresh(true) { [weak self] token, error in
-                if let error = error {
-                    print("[Auth Error] Token refresh failed: \(error.localizedDescription)")
-                    self?.isLoading = false
-                    self?.errorMessage = "Session expired. Please log in again."
-                    self?.signOut()
-                } else if let token = token {
-                    print("[Auth] Token refreshed successfully: \(token.prefix(10))...")
-                    self?.currentUserEmail = currentUser.email?.lowercased()
-                    self?.fetchUserRole(email: currentUser.email?.lowercased() ?? "")
-                } else {
-                    print("[Auth Error] Token refresh returned nil.")
-                    self?.isLoading = false
-                }
-            }
+            let uid = currentUser.uid
+            print("[Auth] User is signed in with UID: \(uid), email: \(currentUser.email ?? "unknown email")")
+            
+            // Fetch user data from Firestore
+            fetchUserData(uid: uid)
         } else {
             print("[Auth] No user currently signed in.")
             isLoading = false
+        }
+    }
+    
+    private func fetchUserData(uid: String) {
+        print("[Firestore] Fetching user data for UID: \(uid)")
+        db.collection("users").document(uid).getDocument { [weak self] (document, error) in
+            if let error = error {
+                print("[Firestore Error] Failed to fetch user data: \(error.localizedDescription)")
+                self?.errorMessage = "Unable to fetch user data. Please contact support."
+                self?.isLoading = false
+            } else if let document = document, document.exists {
+                if let data = document.data(),
+                   let role = data["role"] as? String {
+                    DispatchQueue.main.async {
+                        print("[Firestore] User Role: \(role)")
+                        self?.userRole = role
+                        self?.isUserSignedIn = true
+                        self?.isLoading = false
+                    }
+                } else {
+                    print("[Firestore Error] Role field is missing or invalid.")
+                    self?.errorMessage = "Role information is missing or invalid. Please contact support."
+                    self?.isLoading = false
+                }
+            } else {
+                print("[Firestore] User document does not exist.")
+                self?.errorMessage = "User not found. Please contact support."
+                self?.isLoading = false
+            }
         }
     }
 
@@ -96,37 +114,38 @@ class AuthViewModel: ObservableObject {
                 switch error.code {
                 case FirestoreErrorCode.permissionDenied.rawValue:
                     self?.errorMessage = "Permission denied. Please contact support."
-                    print("[Firestore Error] Permission denied.")
                 case FirestoreErrorCode.unavailable.rawValue:
                     self?.errorMessage = "Firestore service is currently unavailable. Please try again later."
-                    print("[Firestore Error] Firestore unavailable.")
                 default:
                     self?.errorMessage = "Failed to fetch role: \(error.localizedDescription)"
-                    print("[Firestore Error] Unhandled Firestore error: \(error.localizedDescription)")
                 }
 
                 self?.isLoading = false
                 return
             }
 
-            guard let documents = snapshot?.documents, !documents.isEmpty else {
+            guard let snapshot = snapshot, !snapshot.isEmpty else {
                 print("[Firestore] No documents found for email: \(email).")
                 self?.errorMessage = "No role information available. Please contact support."
                 self?.isLoading = false
                 return
             }
 
-            if let role = documents.first?.data()["role"] as? String {
-                DispatchQueue.main.async {
-                    print("[Firestore] Role successfully retrieved: \(role) for email: \(email).")
-                    self?.userRole = role
-                    self?.isUserSignedIn = true
+            print("[Firestore] \(snapshot.documents.count) document(s) found for email: \(email).")
+
+            if let document = snapshot.documents.first {
+                if let role = document.data()["role"] as? String {
+                    DispatchQueue.main.async {
+                        print("[Firestore] Role successfully retrieved: \(role) for email: \(email).")
+                        self?.userRole = role
+                        self?.isUserSignedIn = true
+                        self?.isLoading = false
+                    }
+                } else {
+                    print("[Firestore Error] Role field is missing or invalid in Firestore document for email: \(email).")
+                    self?.errorMessage = "Role data is missing or invalid. Please contact support."
                     self?.isLoading = false
                 }
-            } else {
-                print("[Firestore Error] Role field missing in Firestore document for email: \(email).")
-                self?.errorMessage = "Role data is missing. Please contact support."
-                self?.isLoading = false
             }
         }
     }

@@ -12,7 +12,6 @@ import FirebaseAnalytics
 struct SmartHutManagerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     let persistenceController = PersistenceController.shared
-    private var iCloudSyncManager: ICloudSyncManager
 
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var deletedItemsManager = DeletedItemsManager() // Shared manager
@@ -46,8 +45,6 @@ struct SmartHutManagerApp: App {
         ValueTransformer.setValueTransformer(BadgesTransformer(), forName: NSValueTransformerName("BadgesTransformer"))
         print("Custom value transformers registered")
 
-        iCloudSyncManager = ICloudSyncManager(persistentContainer: persistenceController.container)
-        print("iCloudSyncManager initialized")
 
         // Log a Firebase Analytics test event
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)

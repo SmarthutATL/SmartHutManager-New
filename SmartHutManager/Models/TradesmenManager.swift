@@ -27,6 +27,8 @@ class TradesmenManager {
             let existingTradesmen = self.fetchTradesmen(context: context)
             
             context.perform {
+                let dispatchGroup = DispatchGroup()
+                
                 for tradesmanDocument in tradesmenDocuments {
                     let tradesmanData = tradesmanDocument.data()
                     
@@ -36,15 +38,20 @@ class TradesmenManager {
                         continue
                     }
                     
+                    // Enter the DispatchGroup for each asynchronous Firestore call
+                    dispatchGroup.enter()
+                    
                     // Fetch additional user data from the `users` collection
                     firestore.collection("users").whereField("email", isEqualTo: email).getDocuments { userSnapshot, userError in
                         if let userError = userError {
                             print("Error fetching user data for email \(email): \(userError.localizedDescription)")
+                            dispatchGroup.leave()
                             return
                         }
                         
                         guard let userDocument = userSnapshot?.documents.first else {
                             print("No matching user found for email: \(email)")
+                            dispatchGroup.leave()
                             return
                         }
                         
@@ -75,15 +82,22 @@ class TradesmenManager {
                             
                             print("Added tradesman: \(firstName) with role: \(role)")
                         }
+                        
+                        // Leave the DispatchGroup after completing this Firestore call
+                        dispatchGroup.leave()
                     }
                 }
                 
-                // Save the Core Data context
-                do {
-                    try context.save()
-                    completion(nil)
-                } catch {
-                    completion(error)
+                // Notify when all Firestore calls have completed
+                dispatchGroup.notify(queue: .main) {
+                    do {
+                        try context.save()
+                        completion(nil)
+                        print("All tradesmen saved successfully.")
+                    } catch {
+                        completion(error)
+                        print("Error saving tradesmen: \(error.localizedDescription)")
+                    }
                 }
             }
         }
