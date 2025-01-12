@@ -3,23 +3,24 @@ import CoreData
 
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    @EnvironmentObject var deletedItemsManager: DeletedItemsManager // Add DeletedItemsManager here
+    @EnvironmentObject var deletedItemsManager: DeletedItemsManager
     @FetchRequest(sortDescriptors: [NSSortDescriptor(keyPath: \Tradesmen.name, ascending: true)])
     var tradesmen: FetchedResults<Tradesmen>
     
     let viewContext: NSManagedObjectContext
-    @AppStorage("isDarkMode") private var isDarkMode: Bool = true // Track dark mode state
+    @AppStorage("isDarkMode") private var isDarkMode: Bool = true
 
     var body: some View {
         TabView {
             if authViewModel.userRole == "admin" {
+                // Admin-specific tabs
                 CRMView()
                     .tabItem {
                         Label("Clients", systemImage: "person.3.fill")
                     }
                 
-                JobSchedulerView(userName: "Admin") // Pass "Admin" as the name for admins
-                    .environmentObject(deletedItemsManager) // Inject DeletedItemsManager here
+                JobSchedulerView(userName: "Admin")
+                    .environmentObject(deletedItemsManager)
                     .tabItem {
                         Label("Scheduler", systemImage: "calendar")
                     }
@@ -29,6 +30,7 @@ struct MainTabView: View {
                         Label("Messages", systemImage: "message.fill")
                     }
                 
+                // Leaderboards tab
                 NavigationView {
                     if let userEmail = authViewModel.currentUserEmail,
                        let currentTradesman = tradesmen.first(where: { $0.email?.lowercased() == userEmail }) {
@@ -42,15 +44,16 @@ struct MainTabView: View {
                 }
                 
                 SettingsView()
-                    .environmentObject(deletedItemsManager) // Inject DeletedItemsManager here
+                    .environmentObject(deletedItemsManager)
                     .tabItem {
                         Label("More", systemImage: "gearshape.fill")
                     }
             } else if authViewModel.userRole == "technician" {
+                // Technician-specific tabs (reordered)
                 let userName = tradesmen.first(where: { $0.email?.lowercased() == authViewModel.currentUserEmail })?.name ?? "Unknown"
                 
                 JobSchedulerView(userName: userName)
-                    .environmentObject(deletedItemsManager) // Inject DeletedItemsManager here
+                    .environmentObject(deletedItemsManager)
                     .tabItem {
                         Label("Scheduler", systemImage: "calendar")
                     }
@@ -60,17 +63,29 @@ struct MainTabView: View {
                         Label("Messages", systemImage: "message.fill")
                     }
                 
+                // Leaderboards tab
+                NavigationView {
+                    if let userEmail = authViewModel.currentUserEmail,
+                       let currentTradesman = tradesmen.first(where: { $0.email?.lowercased() == userEmail }) {
+                        TradesmenDetailView(tradesman: currentTradesman)
+                    } else {
+                        NoTradesmenView()
+                    }
+                }
+                .tabItem {
+                    Label("Leaderboards", systemImage: "wrench.fill")
+                }
+                
                 SettingsView()
-                    .environmentObject(deletedItemsManager) // Inject DeletedItemsManager here
+                    .environmentObject(deletedItemsManager)
                     .tabItem {
                         Label("More", systemImage: "gearshape.fill")
                     }
             }
-
         }
-        .tint(Color.blue) // Selected tab color: Always blue
+        .tint(Color.blue)
         .onAppear {
-            configureTabBarAppearance() // Apply tab bar styling
+            configureTabBarAppearance()
         }
     }
 
@@ -80,8 +95,8 @@ struct MainTabView: View {
 
         // Configure the background and separator line
         appearance.configureWithDefaultBackground()
-        appearance.backgroundColor = UIColor.systemBackground // Background color matches system background
-        appearance.shadowColor = UIColor.systemGray4 // Keep the separator line visible at the top of the tab bar
+        appearance.backgroundColor = UIColor.systemBackground
+        appearance.shadowColor = UIColor.systemGray4
 
         // Configure the unselected item tint color
         UITabBar.appearance().unselectedItemTintColor = isDarkMode ? UIColor.lightGray : UIColor.darkGray
@@ -91,6 +106,6 @@ struct MainTabView: View {
 
         // Apply the configured appearance to the tab bar
         UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance // Consistent styling for scrollable tabs
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 }
