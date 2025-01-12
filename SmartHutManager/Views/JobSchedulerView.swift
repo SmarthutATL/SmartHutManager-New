@@ -47,9 +47,13 @@ struct JobSchedulerView: View {
                         Button(action: {
                             isPresentingWorkOrderList.toggle()
                         }) {
-                            Image(systemName: "doc.text.magnifyingglass")
-                                .foregroundColor(.blue)
-                                .font(.title)
+                            Text("View All Work Orders")
+                                .font(.subheadline) // Smaller font size for compact design
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10) // Adjust horizontal padding for compactness
+                                .padding(.vertical, 6) // Adjust vertical padding for compactness
+                                .background(Color.blue)
+                                .cornerRadius(8) // Slightly round corners
                         }
                         .sheet(isPresented: $isPresentingWorkOrderList) {
                             WorkOrderListView()
