@@ -36,16 +36,27 @@ class FirebaseSyncManager {
     }
 
     private func updateOrCreateEntity(from document: QueryDocumentSnapshot, context: NSManagedObjectContext) {
-        // Example: Assuming you're syncing a JobCategoryEntity
-        guard let entityName = document.data()["entityName"] as? String else { return }
+        guard let entityName = document.data()["entityName"] as? String else {
+            print("Missing entity name for document: \(document.documentID)")
+            return
+        }
         
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: entityName)
         fetchRequest.predicate = NSPredicate(format: "id == %@", document.documentID)
 
         do {
             if let existingEntity = try context.fetch(fetchRequest).first as? NSManagedObject {
-                // Update existing entity
+                // Skip updates for admin roles (example)
+                if let role = existingEntity.value(forKey: "role") as? String, role == "admin" {
+                    print("Skipping update for admin entity: \(document.documentID)")
+                    return
+                }
+
+                // Update only if values have changed
                 for (key, value) in document.data() {
+                    if let existingValue = existingEntity.value(forKey: key), "\(existingValue)" == "\(value)" {
+                        continue // Skip if the value hasn't changed
+                    }
                     existingEntity.setValue(value, forKey: key)
                 }
             } else {
@@ -56,7 +67,7 @@ class FirebaseSyncManager {
                 }
             }
         } catch {
-            print("Error updating/creating entity: \(error.localizedDescription)")
+            print("Error updating/creating entity for document \(document.documentID): \(error.localizedDescription)")
         }
     }
 

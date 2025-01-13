@@ -3,19 +3,19 @@ import FirebaseFirestore
 
 struct EditTradesmanView: View {
     @ObservedObject var tradesman: Tradesmen // CoreData model instance
-
+    
     @State private var name: String
     @State private var jobTitle: String
     @State private var phoneNumber: String
     @State private var address: String
     @State private var email: String
-
+    
     @State private var isSaving = false
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.presentationMode) private var presentationMode
-
+    
     private let db = Firestore.firestore()
-
+    
     init(tradesman: Tradesmen) {
         self.tradesman = tradesman
         self._name = State(initialValue: tradesman.name ?? "")
@@ -24,7 +24,7 @@ struct EditTradesmanView: View {
         self._address = State(initialValue: tradesman.address ?? "")
         self._email = State(initialValue: tradesman.email ?? "")
     }
-
+    
     var body: some View {
         NavigationView {
             Form {
@@ -37,7 +37,7 @@ struct EditTradesmanView: View {
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                 }
-
+                
                 if isSaving {
                     ProgressView("Saving...")
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -61,17 +61,17 @@ struct EditTradesmanView: View {
             })
         }
     }
-
+    
     private func saveChanges() {
         isSaving = true
-
+        
         // Update CoreData model
         tradesman.name = name
         tradesman.jobTitle = jobTitle
         tradesman.phoneNumber = phoneNumber
         tradesman.address = address
         tradesman.email = email
-
+        
         // Save to CoreData
         do {
             try viewContext.save()
@@ -79,9 +79,13 @@ struct EditTradesmanView: View {
         } catch {
             print("Failed to save tradesman to CoreData: \(error.localizedDescription)")
         }
-
+        
         // Update Firestore
-        let tradesmanId = tradesman.objectID.uriRepresentation().absoluteString
+        guard let tradesmanId = tradesman.id else {
+            print("Invalid Tradesman ID")
+            return
+        }
+        
         let updatedData: [String: Any] = [
             "name": name,
             "jobTitle": jobTitle,
@@ -89,7 +93,7 @@ struct EditTradesmanView: View {
             "address": address,
             "email": email
         ]
-
+        
         db.collection("tradesmen").document(tradesmanId).setData(updatedData, merge: true) { error in
             DispatchQueue.main.async {
                 self.isSaving = false

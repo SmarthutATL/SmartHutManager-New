@@ -45,14 +45,17 @@ struct SmartHutManagerApp: App {
         ValueTransformer.setValueTransformer(BadgesTransformer(), forName: NSValueTransformerName("BadgesTransformer"))
         print("Custom value transformers registered")
 
-
         // Log a Firebase Analytics test event
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
         print("Logged App Open event to Firebase Analytics")
 
         seedData(context: persistenceController.container.viewContext)
         print("Data seeding complete")
+        
+        // Assign missing IDs to tradesmen
+        TradesmenManager.shared.assignMissingIds(context: context)
 
+        // Sync tradesmen from Firestore
         TradesmenManager.shared.syncTradesmen(context: persistenceController.container.viewContext) { error in
             if let error = error {
                 print("Failed to sync tradesmen: \(error)")

@@ -201,7 +201,7 @@ struct JobSchedulerView: View {
                     .padding()
                 }
             }
-            .navigationTitle("\(userName)'s Schedule") // Dynamically display the user's name
+            .navigationTitle("\(authViewModel.userFirstName ?? "User")'s Schedule")
             .background(isDarkMode ? Color.black.edgesIgnoringSafeArea(.all) : Color.white.edgesIgnoringSafeArea(.all)) // Dynamic view background
             .sheet(isPresented: $isShowingReschedulePicker) {
                 if let workOrder = workOrderToReschedule {

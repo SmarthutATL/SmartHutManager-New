@@ -192,6 +192,7 @@ struct TradesmanAccountSection: View {
                     let data = document.data()
                     print("Fetched Data: \(data)")
                     
+                    // Set user-specific data
                     self.companyID = data["companyID"] as? String
                     self.companyName = data["companyName"] as? String
                     let firstName = data["firstName"] as? String
@@ -202,11 +203,13 @@ struct TradesmanAccountSection: View {
                     
                     self.userRole = data["role"] as? String
 
-                    // Ensure tradesman properties are updated
-                    if let tradesman = self.tradesman {
+                    // Update tradesman properties only if it matches the authenticated user's email
+                    if let tradesman = self.tradesman, tradesman.email?.lowercased() == email.lowercased() {
                         tradesman.phoneNumber = data["phoneNumber"] as? String
                         tradesman.address = data["address"] as? String
-                        tradesman.email = data["email"] as? String
+                        tradesman.email = email // Set to authenticated user's email
+                    } else {
+                        print("Skipping tradesman update: Authenticated user does not match the displayed tradesman.")
                     }
                 } else {
                     print("[Error] No matching user found for email: \(email)")

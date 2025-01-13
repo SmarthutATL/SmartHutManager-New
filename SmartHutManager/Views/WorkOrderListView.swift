@@ -4,13 +4,9 @@ import MessageUI // Import MessageUI for sending texts
 
 struct WorkOrderListView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject var authViewModel: AuthViewModel
     
-    // Fetch work orders with minimal data to optimize load times
-    @FetchRequest(
-        fetchRequest: WorkOrderListView.configureFetchRequest(),
-        animation: .default
-    )
-    private var workOrders: FetchedResults<WorkOrder>
+    @State private var workOrders: [WorkOrder] = []
     
     // Fetch all tradesmen/technicians for filtering
     @FetchRequest(
@@ -220,8 +216,23 @@ struct WorkOrderListView: View {
                             }
                         }
                         .onAppear {
-                            preloadNextBatchIfNeeded(for: workOrder)
+                            let request = WorkOrder.fetchRequest()
+                            request.sortDescriptors = [NSSortDescriptor(keyPath: \WorkOrder.date, ascending: true)]
+                            
+                            // Apply filtering based on the user's role
+                            if authViewModel.userRole == "technician", let email = authViewModel.currentUserEmail {
+                                request.predicate = NSPredicate(format: "ANY tradesmen.email == %@", email)
+                            } else if authViewModel.userRole == "admin" {
+                                request.predicate = nil // Admin sees all work orders
+                            }
+                            
+                            do {
+                                workOrders = try viewContext.fetch(request)
+                            } catch {
+                                print("Error fetching work orders: \(error.localizedDescription)")
+                            }
                         }
+                        
                         .swipeActions(edge: .trailing) {
                             if !isEditing {
                                 // Message Button
@@ -280,14 +291,6 @@ struct WorkOrderListView: View {
         }
     }
 
-    // MARK: - Configure Fetch Request with Batch Size
-    static func configureFetchRequest() -> NSFetchRequest<WorkOrder> {
-        let request = WorkOrder.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \WorkOrder.date, ascending: true)]
-        request.predicate = NSPredicate(format: "date != nil")
-        request.fetchBatchSize = 20 // Enable batching
-        return request
-    }
 
     // Generate category buttons for ActionSheet
     private func categoryPickerButtons() -> [ActionSheet.Button] {
@@ -338,6 +341,34 @@ struct WorkOrderListView: View {
     // Filter work orders by search query, selected category, selected status, selected technician, and apply sorting
     private var filteredWorkOrders: [WorkOrder] {
         var filtered = workOrders.filter { workOrder in
+            // Check if the logged-in user is an admin
+            if authViewModel.userRole == "admin" {
+                print("Admin user - showing all work orders.")
+                return true
+            }
+
+            // Check if the work order is assigned to the logged-in technician
+            if let tradesmenSet = workOrder.tradesmen as? Set<Tradesmen> {
+                let isAssigned = tradesmenSet.contains { tradesman in
+                    let match = tradesman.email?.lowercased() == authViewModel.currentUserEmail?.lowercased()
+                    if match {
+                        print("Match found for work order #\(workOrder.workOrderNumber) with technician \(tradesman.name ?? "Unknown").")
+                    }
+                    return match
+                }
+                if !isAssigned {
+                    print("Work order #\(workOrder.workOrderNumber) not assigned to the logged-in technician.")
+                }
+                return isAssigned
+            }
+            
+            // If no tradesmen are assigned, exclude the work order
+            print("Work order #\(workOrder.workOrderNumber) has no assigned tradesmen.")
+            return false
+        }
+
+        // Apply search query filter
+        filtered = filtered.filter { workOrder in
             searchQuery.isEmpty || workOrderMatchesQuery(workOrder)
         }
 
@@ -359,10 +390,10 @@ struct WorkOrderListView: View {
             }
         }
 
-        // Sort work orders
+        // Sort the work orders
         return filtered.sorted { sortOption.comparator($0, $1) }
     }
-
+    
     // Check if a work order matches the search query
     private func workOrderMatchesQuery(_ workOrder: WorkOrder) -> Bool {
         if let customerName = workOrder.customer?.name, customerName.localizedCaseInsensitiveContains(searchQuery) {
@@ -392,24 +423,6 @@ struct WorkOrderListView: View {
         }
     }
 
-    // Preload next batch if needed
-    private func preloadNextBatchIfNeeded(for workOrder: WorkOrder) {
-        guard let index = workOrders.firstIndex(of: workOrder) else { return }
-        let thresholdIndex = workOrders.index(workOrders.endIndex, offsetBy: -5)
-        if index >= thresholdIndex {
-            fetchMoreWorkOrders()
-        }
-    }
-
-    // Fetch more work orders
-    private func fetchMoreWorkOrders() {
-        let request = WorkOrderListView.configureFetchRequest()
-        do {
-            let _ = try viewContext.fetch(request)
-        } catch {
-            print("Error fetching more work orders: \(error.localizedDescription)")
-        }
-    }
 
     // Helper function to format dates
     private func formattedDate(_ date: Date) -> String {

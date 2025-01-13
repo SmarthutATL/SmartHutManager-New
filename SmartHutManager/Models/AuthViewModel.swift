@@ -4,13 +4,19 @@ import FirebaseFunctions
 import SwiftUI
 
 class AuthViewModel: ObservableObject {
+    static let shared = AuthViewModel()
+    
     @Published var isUserSignedIn = false
     @Published var isLoading = true
     @Published var errorMessage: String? = nil
     @Published var userRole: String = ""
     @Published var currentUserEmail: String?
+    @Published var userFirstName: String?
+    @Published var userFullName: String?
 
     private var db = Firestore.firestore()
+    
+    
 
     init() {
         print("[AuthViewModel] Initialized.")
@@ -42,19 +48,22 @@ class AuthViewModel: ObservableObject {
                 self?.errorMessage = "Unable to fetch user data. Please contact support."
                 self?.isLoading = false
             } else if let document = document, document.exists {
-                if let data = document.data(),
-                   let role = data["role"] as? String,
-                   let email = data["email"] as? String { // Ensure email is fetched
+                if let data = document.data() {
+                    let role = data["role"] as? String ?? "Unknown Role"
+                    let email = data["email"] as? String ?? "Unknown Email"
+                    let firstName = data["firstName"] as? String ?? "User"
+
                     DispatchQueue.main.async {
-                        print("[Firestore] User Role: \(role), Email: \(email)")
+                        print("[Firestore] User Role: \(role), Email: \(email), First Name: \(firstName)")
                         self?.userRole = role
-                        self?.currentUserEmail = email.lowercased() // Set the email
+                        self?.currentUserEmail = email.lowercased()
+                        self?.userFirstName = firstName // Store the first name
                         self?.isUserSignedIn = true
                         self?.isLoading = false
                     }
                 } else {
-                    print("[Firestore Error] Role or email field is missing or invalid.")
-                    self?.errorMessage = "Role or email information is missing or invalid. Please contact support."
+                    print("[Firestore Error] Data is missing or invalid.")
+                    self?.errorMessage = "User information is missing or invalid. Please contact support."
                     self?.isLoading = false
                 }
             } else {
@@ -64,7 +73,6 @@ class AuthViewModel: ObservableObject {
             }
         }
     }
-    
     // MARK: - Sign In
     func signIn(email: String, password: String) {
         print("[Auth] Attempting sign-in with email: \(email)")

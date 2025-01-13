@@ -1,38 +1,49 @@
 import SwiftUI
 import CoreData
-import FirebaseFirestore
 
 struct TradesmenListView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    private let db = Firestore.firestore()
-
-    @FetchRequest(
-        entity: Tradesmen.entity(),
-        sortDescriptors: [NSSortDescriptor(keyPath: \Tradesmen.name, ascending: true)]
-    ) var tradesmen: FetchedResults<Tradesmen>
-
+    @State private var tradesmen: [Tradesmen] = []
+    @State private var isLoading = true
     @State private var isShowingCreateTradesman = false
     @State private var selectedEditTradesman: Tradesmen?
     @State private var selectedDetailTradesman: Tradesmen?
+    @State private var selectedDeleteTradesman: Tradesmen? // For tracking the tradesman to delete
+    @State private var isShowingDeleteConfirmation = false // For showing the delete confirmation
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 16) {
-                    ForEach(tradesmen) { tradesman in
-                        TradesmanCardView(
-                            tradesman: tradesman,
-                            onEdit: {
-                                self.selectedEditTradesman = tradesman
-                            },
-                            onDetails: {
-                                self.selectedDetailTradesman = tradesman
+            VStack {
+                if isLoading {
+                    ProgressView("Loading technicians...")
+                        .padding()
+                } else if tradesmen.isEmpty {
+                    Text("No technicians available.")
+                        .foregroundColor(.secondary)
+                        .padding()
+                } else {
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(tradesmen) { tradesman in
+                                TradesmanCardView(
+                                    tradesman: tradesman,
+                                    onEdit: {
+                                        self.selectedEditTradesman = tradesman
+                                    },
+                                    onDetails: {
+                                        self.selectedDetailTradesman = tradesman
+                                    },
+                                    onDelete: {
+                                        self.selectedDeleteTradesman = tradesman
+                                        self.isShowingDeleteConfirmation = true
+                                    }
+                                )
+                                .padding(.horizontal)
                             }
-                        )
-                        .padding(.horizontal)
+                        }
+                        .padding(.top)
                     }
                 }
-                .padding(.top)
             }
             .navigationTitle("Technicians")
             .toolbar {
@@ -44,49 +55,67 @@ struct TradesmenListView: View {
                     }
                 }
             }
-            // Create Tradesman Sheet
             .sheet(isPresented: $isShowingCreateTradesman) {
                 CreateTradesmanView()
+                    .onDisappear {
+                        loadTradesmen()
+                    }
             }
-            // Edit Tradesman Sheet
             .sheet(item: $selectedEditTradesman) { tradesman in
                 EditTradesmanView(tradesman: tradesman)
                     .onDisappear {
-                        selectedEditTradesman = nil // Reset to avoid conflicts
+                        selectedEditTradesman = nil
+                        loadTradesmen()
                     }
             }
-            // Technician Detail Sheet
             .sheet(item: $selectedDetailTradesman) { tradesman in
                 TechDetailView(tradesman: tradesman)
                     .onDisappear {
                         selectedDetailTradesman = nil
                     }
             }
-            .background(Color(.systemGroupedBackground).edgesIgnoringSafeArea(.all))
+            .confirmationDialog(
+                "Are you sure you want to delete this technician? This action cannot be undone.",
+                isPresented: $isShowingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete", role: .destructive) {
+                    if let tradesmanToDelete = selectedDeleteTradesman {
+                        deleteTradesman(tradesmanToDelete)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    selectedDeleteTradesman = nil // Reset the selection
+                }
+            }
+            .onAppear {
+                loadTradesmen()
+            }
         }
     }
 
-    private func deleteTradesman(at offsets: IndexSet) {
-        offsets.map { tradesmen[$0] }.forEach { tradesman in
-            // Delete from CoreData
-            viewContext.delete(tradesman)
-
-            // Delete from Firestore
-            let tradesmanId = tradesman.objectID.uriRepresentation().absoluteString
-            db.collection("tradesmen").document(tradesmanId).delete { error in
-                if let error = error {
-                    print("Failed to delete tradesman from Firestore: \(error.localizedDescription)")
+    private func deleteTradesman(_ tradesman: Tradesmen) {
+        isLoading = true
+        TradesmenManager.shared.deleteTradesman(tradesman, context: viewContext) { success in
+            DispatchQueue.main.async {
+                isLoading = false
+                if success {
+                    loadTradesmen() // Refresh the list after deletion
                 } else {
-                    print("Tradesman successfully deleted from Firestore.")
+                    print("Failed to delete tradesman.")
                 }
             }
         }
+    }
 
-        // Save CoreData changes
-        do {
-            try viewContext.save()
-        } catch {
-            print("Failed to delete tradesman: \(error.localizedDescription)")
+    private func loadTradesmen() {
+        isLoading = true
+        TradesmenManager.shared.assignMissingIds(context: viewContext)
+        TradesmenManager.shared.fetchTradesmen(context: viewContext) { fetchedTradesmen in
+            DispatchQueue.main.async {
+                self.tradesmen = fetchedTradesmen
+                self.isLoading = false
+            }
         }
     }
 }
@@ -96,6 +125,7 @@ struct TradesmanCardView: View {
     let tradesman: Tradesmen
     let onEdit: () -> Void
     let onDetails: () -> Void
+    let onDelete: () -> Void // Add a delete callback
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -117,6 +147,13 @@ struct TradesmanCardView: View {
                     Image(systemName: "pencil.circle.fill")
                         .font(.title3)
                         .foregroundColor(.blue)
+                }
+                Button(action: {
+                    onDelete() // Trigger delete action
+                }) {
+                    Image(systemName: "trash.fill")
+                        .font(.title3)
+                        .foregroundColor(.red)
                 }
             }
 

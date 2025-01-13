@@ -28,6 +28,7 @@ extension Tradesmen {
     @NSManaged public var workOrderPoints: Int32
     @NSManaged public var workOrders: NSSet?
     @NSManaged public var inventory: Inventory?
+    @NSManaged public var id: String?
 
 }
 
