@@ -340,30 +340,29 @@ struct WorkOrderListView: View {
 
     // Filter work orders by search query, selected category, selected status, selected technician, and apply sorting
     private var filteredWorkOrders: [WorkOrder] {
-        var filtered = workOrders.filter { workOrder in
-            // Check if the logged-in user is an admin
-            if authViewModel.userRole == "admin" {
-                print("Admin user - showing all work orders.")
-                return true
-            }
-
-            // Check if the work order is assigned to the logged-in technician
-            if let tradesmenSet = workOrder.tradesmen as? Set<Tradesmen> {
-                let isAssigned = tradesmenSet.contains { tradesman in
-                    let match = tradesman.email?.lowercased() == authViewModel.currentUserEmail?.lowercased()
-                    if match {
-                        print("Match found for work order #\(workOrder.workOrderNumber) with technician \(tradesman.name ?? "Unknown").")
-                    }
-                    return match
+        // Admins see all work orders without restrictions
+        if authViewModel.userRole == "admin" {
+            print("Admin user detected - showing all work orders.")
+            return workOrders
+                .filter { workOrder in
+                    // Apply search, category, status, or technician filters if needed
+                    searchQuery.isEmpty || workOrderMatchesQuery(workOrder)
                 }
-                if !isAssigned {
-                    print("Work order #\(workOrder.workOrderNumber) not assigned to the logged-in technician.")
+                .sorted { sortOption.comparator($0, $1) }
+        }
+
+        // For non-admins (technicians), apply assigned work order filtering
+        var filtered = workOrders.filter { workOrder in
+            if let tradesmenSet = workOrder.tradesmen as? Set<Tradesmen> {
+                let isAssigned = tradesmenSet.contains { $0.email?.lowercased() == authViewModel.currentUserEmail?.lowercased() }
+                if isAssigned {
+                    print("Work order #\(workOrder.workOrderNumber) is assigned to the current technician.")
+                } else {
+                    print("Work order #\(workOrder.workOrderNumber) is NOT assigned to the current technician.")
                 }
                 return isAssigned
             }
-            
-            // If no tradesmen are assigned, exclude the work order
-            print("Work order #\(workOrder.workOrderNumber) has no assigned tradesmen.")
+            print("Work order #\(workOrder.workOrderNumber) has no tradesmen assigned.")
             return false
         }
 

@@ -102,6 +102,13 @@ struct JobSchedulerView: View {
                     Text("No work orders for \(formattedDate(selectedDate))")
                         .font(.caption)
                         .foregroundColor(.gray)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color(UIColor.systemGray6))
+                        )
+                        .padding(.horizontal)
                         .padding(.top, 10)
                 } else {
                     List {
@@ -226,6 +233,12 @@ struct JobSchedulerView: View {
     
     // Displayed Work Orders: Filtered by assigned tradesmen
     private var displayedWorkOrders: [DisplayableWorkOrder] {
+        if authViewModel.userRole == "admin" {
+            // Admins see all work orders
+            return workOrders.map { DisplayableWorkOrder(workOrder: $0, isHidden: false) }
+        }
+        
+        // Technicians only see their assigned work orders
         let technicianEmail = authViewModel.currentUserEmail?.lowercased() ?? ""
         return workOrders.filter { workOrder in
             if let tradesmenSet = workOrder.tradesmen as? Set<Tradesmen> {

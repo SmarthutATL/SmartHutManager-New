@@ -67,73 +67,36 @@ class TradesmenManager {
 
                         dispatchGroup.enter()
 
-                        self.firestore.collection("users").whereField("email", isEqualTo: email).getDocuments { userSnapshot, userError in
-                            if let userError = userError {
-                                print("Error fetching user data for email \(email): \(userError.localizedDescription)")
-                                dispatchGroup.leave()
-                                return
-                            }
+                        // Check if the tradesman exists locally
+                        if let existingTradesman = existingTradesmen.first(where: { $0.email?.lowercased() == email.lowercased() }) {
+                            // Do NOT update existing tradesmen
+                            print("[Sync] Skipping updates for existing tradesman: \(email)")
+                        } else {
+                            // Add new tradesman to Core Data
+                            let newTradesman = Tradesmen(context: context)
+                            newTradesman.name = tradesmanData["name"] as? String ?? "Unknown Name"
+                            newTradesman.jobTitle = tradesmanData["jobTitle"] as? String
+                            newTradesman.phoneNumber = tradesmanData["phoneNumber"] as? String
+                            newTradesman.address = tradesmanData["address"] as? String
+                            newTradesman.email = email.lowercased()
+                            newTradesman.points = Int32(tradesmanData["points"] as? Int ?? 0)
+                            newTradesman.badges = tradesmanData["badges"] as? [String] as NSArray? ?? []
+                            newTradesman.jobCompletionStreak = Int32(tradesmanData["jobCompletionStreak"] as? Int ?? 0)
 
-                            guard let userDocument = userSnapshot?.documents.first else {
-                                print("No matching user found for email: \(email)")
-                                dispatchGroup.leave()
-                                return
-                            }
-
-                            let userData = userDocument.data()
-                            let firestoreName = userData["firstName"] as? String ?? "Unknown Name"
-                            let role = userData["role"] as? String ?? "Unknown Role"
-                            let firestoreJobTitle = tradesmanData["jobTitle"] as? String ?? role
-                            let firestorePhoneNumber = tradesmanData["phoneNumber"] as? String
-                            let firestoreAddress = tradesmanData["address"] as? String
-                            let firestorePoints = tradesmanData["points"] as? Int ?? 0
-                            let firestoreBadges = tradesmanData["badges"] as? [String] ?? []
-                            let firestoreJobCompletionStreak = tradesmanData["jobCompletionStreak"] as? Int ?? 0
-
-                            if let existingTradesman = existingTradesmen.first(where: { $0.email?.lowercased() == email.lowercased() }) {
-                                // Compare each field to avoid overwriting local changes
-                                if existingTradesman.name != firestoreName {
-                                    print("Skipping name update for \(email). Local: \(existingTradesman.name ?? ""), Firestore: \(firestoreName)")
-                                } else {
-                                    existingTradesman.name = firestoreName
-                                }
-
-                                existingTradesman.jobTitle = firestoreJobTitle
-                                existingTradesman.phoneNumber = existingTradesman.phoneNumber ?? firestorePhoneNumber
-                                existingTradesman.address = existingTradesman.address ?? firestoreAddress
-                                existingTradesman.email = email.lowercased()
-                                existingTradesman.points = Int32(firestorePoints)
-                                existingTradesman.badges = firestoreBadges as NSArray
-                                existingTradesman.jobCompletionStreak = Int32(firestoreJobCompletionStreak)
-
-                                print("Updated tradesman: \(firestoreName) with role: \(role)")
-                            } else {
-                                // Add new tradesman to Core Data
-                                let newTradesman = Tradesmen(context: context)
-                                newTradesman.name = firestoreName
-                                newTradesman.jobTitle = firestoreJobTitle
-                                newTradesman.phoneNumber = firestorePhoneNumber
-                                newTradesman.address = firestoreAddress
-                                newTradesman.email = email.lowercased()
-                                newTradesman.points = Int32(firestorePoints)
-                                newTradesman.badges = firestoreBadges as NSArray
-                                newTradesman.jobCompletionStreak = Int32(firestoreJobCompletionStreak)
-
-                                print("Added tradesman: \(firestoreName) with role: \(role)")
-                            }
-
-                            dispatchGroup.leave()
+                            print("[Sync] Added new tradesman: \(newTradesman.name ?? "Unknown Name")")
                         }
+
+                        dispatchGroup.leave()
                     }
 
                     dispatchGroup.notify(queue: .main) {
                         do {
                             try context.save()
                             completion(nil)
-                            print("All tradesmen synced and saved successfully.")
+                            print("[Sync] All tradesmen synced successfully.")
                         } catch {
                             completion(error)
-                            print("Error saving tradesmen: \(error.localizedDescription)")
+                            print("[Sync Error] Failed to save tradesmen: \(error.localizedDescription)")
                         }
                     }
                 }

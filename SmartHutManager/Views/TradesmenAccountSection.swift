@@ -32,7 +32,7 @@ struct TradesmanAccountSection: View {
                         .foregroundColor(.blue)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(userFullName ?? "Unknown Name") // Updated to use userFullName
+                        Text(userFullName ?? "Unknown Name")
                             .font(.system(size: 24, weight: .semibold))
                             .foregroundColor(.primary)
 
@@ -162,7 +162,9 @@ struct TradesmanAccountSection: View {
             }
             .padding(.horizontal)
             .onAppear {
+                print("[Debug] userFullName before view appears: \(userFullName ?? "nil")")
                 fetchCompanyID()
+                fetchUserTradesman()
             }
         } else {
             Text("No tradesman available")
@@ -174,45 +176,33 @@ struct TradesmanAccountSection: View {
 
     // MARK: - Fetch Company ID
     private func fetchCompanyID() {
-        guard let email = Auth.auth().currentUser?.email else {
-            print("[Error] Authenticated user email is nil.")
+        guard let user = Auth.auth().currentUser else {
+            print("[Error] No authenticated user.")
+            self.isLoading = false
             return
         }
 
         let db = Firestore.firestore()
         isLoading = true
 
-        print("Fetching user data for authenticated email: \(email)")
-        db.collection("users").whereField("email", isEqualTo: email).getDocuments { snapshot, error in
+        print("Fetching user data for authenticated UID: \(user.uid)")
+        db.collection("users").document(user.uid).getDocument { document, error in
             DispatchQueue.main.async {
                 if let error = error {
-                    print("[Error] Fetching user data failed: \(error.localizedDescription)")
+                    print("[Error] Failed to fetch user document: \(error.localizedDescription)")
                     self.resetUserData()
-                } else if let snapshot = snapshot, let document = snapshot.documents.first {
+                } else if let document = document, document.exists {
                     let data = document.data()
-                    print("Fetched Data: \(data)")
+                    print("Fetched User Data: \(String(describing: data))")
                     
-                    // Set user-specific data
-                    self.companyID = data["companyID"] as? String
-                    self.companyName = data["companyName"] as? String
-                    let firstName = data["firstName"] as? String
-                    let lastName = data["lastName"] as? String
+                    // Update @State variables
+                    self.companyID = data?["companyID"] as? String
+                    self.companyName = data?["companyName"] as? String
                     
-                    self.userFullName = [firstName, lastName].compactMap { $0 }.joined(separator: " ")
-                    print("Set userFullName: \(self.userFullName ?? "Unknown Name")")
-                    
-                    self.userRole = data["role"] as? String
-
-                    // Update tradesman properties only if it matches the authenticated user's email
-                    if let tradesman = self.tradesman, tradesman.email?.lowercased() == email.lowercased() {
-                        tradesman.phoneNumber = data["phoneNumber"] as? String
-                        tradesman.address = data["address"] as? String
-                        tradesman.email = email // Set to authenticated user's email
-                    } else {
-                        print("Skipping tradesman update: Authenticated user does not match the displayed tradesman.")
-                    }
+                    // Fetch tradesman details after fetching the companyID
+                    self.fetchUserTradesman()
                 } else {
-                    print("[Error] No matching user found for email: \(email)")
+                    print("[Error] No user document found for UID: \(user.uid)")
                     self.resetUserData()
                 }
                 self.isLoading = false
@@ -226,13 +216,14 @@ struct TradesmanAccountSection: View {
         self.companyName = nil
         self.userFullName = nil
         self.userRole = nil
+
         if let tradesman = self.tradesman {
             tradesman.phoneNumber = nil
             tradesman.address = nil
             tradesman.email = nil
         }
     }
-
+    
     // MARK: - Send Email
     private func sendCompanyIDEmail(to email: String, companyID: String) {
         if MFMailComposeViewController.canSendMail() {
@@ -311,6 +302,49 @@ struct TradesmanAccountSection: View {
         }
     }
 
+    // Add this method inside TradesmanAccountSection
+    private func fetchUserTradesman() {
+        guard let email = Auth.auth().currentUser?.email else {
+            print("[Error] User email is nil.")
+            self.isLoading = false
+            return
+        }
+
+        let normalizedEmail = email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        print("[Firestore] Fetching tradesman for normalized email: \(normalizedEmail)")
+
+        let db = Firestore.firestore()
+        db.collection("tradesmen").whereField("email", isEqualTo: normalizedEmail).getDocuments { snapshot, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    print("[Error] Failed to fetch tradesman: \(error.localizedDescription)")
+                    self.resetUserData()
+                    return
+                }
+
+                guard let document = snapshot?.documents.first else {
+                    print("[Error] No tradesman found for email: \(normalizedEmail)")
+                    self.resetUserData()
+                    return
+                }
+
+                let data = document.data()
+                print("[Firestore] Fetched tradesman document data: \(data)")
+
+                // Safely unwrap and concatenate firstName and lastName
+                let firstName = data["firstName"] as? String ?? "Unknown"
+                let lastName = data["lastName"] as? String ?? "Name"
+                self.userFullName = "\(firstName) \(lastName)"
+                
+                // Optionally update the user role
+                self.userRole = data["jobTitle"] as? String ?? "Unknown Role"
+                
+                self.isLoading = false
+            }
+        }
+    }
+    
+    
     // MARK: - Authentication
     private func authenticate() {
         let context = LAContext()
