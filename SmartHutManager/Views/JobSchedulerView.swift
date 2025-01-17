@@ -57,7 +57,8 @@ struct JobSchedulerView: View {
                         }
                         .sheet(isPresented: $isPresentingWorkOrderList) {
                             WorkOrderListView()
-                                .environment(\.managedObjectContext, viewContext)
+                                .environment(\.managedObjectContext, viewContext) // Pass Core Data context
+                                .environmentObject(authViewModel) // Pass AuthViewModel
                         }
                         
                         Spacer()

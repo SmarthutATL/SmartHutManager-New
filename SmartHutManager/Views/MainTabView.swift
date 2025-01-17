@@ -87,6 +87,10 @@ struct MainTabView: View {
         .onAppear {
             configureTabBarAppearance()
         }
+        .onChange(of: authViewModel.userRole) { newRole in
+            print("User role updated to: \(newRole)")
+            // Optional: Trigger additional updates if needed.
+        }
     }
 
     // MARK: - Tab Bar Appearance Configuration

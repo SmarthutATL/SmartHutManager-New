@@ -94,19 +94,13 @@ struct SmartHutManagerApp: App {
     }
 
     private func handleSplashTransition() {
-        if authViewModel.isUserSignedIn {
-            // Skip splash screen faster if user is signed in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                withAnimation {
-                    showSplash = false
-                }
+        if authViewModel.isLoading {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                handleSplashTransition() // Retry until loading completes
             }
         } else {
-            // Show splash screen briefly before navigating to sign-in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                withAnimation {
-                    showSplash = false
-                }
+            withAnimation {
+                showSplash = false
             }
         }
     }

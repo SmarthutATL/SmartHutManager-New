@@ -6,13 +6,17 @@ struct WorkOrderListView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var authViewModel: AuthViewModel
     
-    @State private var workOrders: [WorkOrder] = []
-    
     // Fetch all tradesmen/technicians for filtering
     @FetchRequest(
         entity: Tradesmen.entity(),
         sortDescriptors: [NSSortDescriptor(keyPath: \Tradesmen.name, ascending: true)]
     ) private var tradesmen: FetchedResults<Tradesmen>
+    
+
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \WorkOrder.date, ascending: true)],
+        animation: .default
+    ) private var fetchedWorkOrders: FetchedResults<WorkOrder>
     
     @State private var searchQuery: String = ""
     @State private var sortOption: SortOption = .date(ascending: true) // Start with ascending date sort
@@ -216,21 +220,6 @@ struct WorkOrderListView: View {
                             }
                         }
                         .onAppear {
-                            let request = WorkOrder.fetchRequest()
-                            request.sortDescriptors = [NSSortDescriptor(keyPath: \WorkOrder.date, ascending: true)]
-                            
-                            // Apply filtering based on the user's role
-                            if authViewModel.userRole == "technician", let email = authViewModel.currentUserEmail {
-                                request.predicate = NSPredicate(format: "ANY tradesmen.email == %@", email)
-                            } else if authViewModel.userRole == "admin" {
-                                request.predicate = nil // Admin sees all work orders
-                            }
-                            
-                            do {
-                                workOrders = try viewContext.fetch(request)
-                            } catch {
-                                print("Error fetching work orders: \(error.localizedDescription)")
-                            }
                         }
                         
                         .swipeActions(edge: .trailing) {
@@ -340,34 +329,8 @@ struct WorkOrderListView: View {
 
     // Filter work orders by search query, selected category, selected status, selected technician, and apply sorting
     private var filteredWorkOrders: [WorkOrder] {
-        // Admins see all work orders without restrictions
-        if authViewModel.userRole == "admin" {
-            print("Admin user detected - showing all work orders.")
-            return workOrders
-                .filter { workOrder in
-                    // Apply search, category, status, or technician filters if needed
-                    searchQuery.isEmpty || workOrderMatchesQuery(workOrder)
-                }
-                .sorted { sortOption.comparator($0, $1) }
-        }
-
-        // For non-admins (technicians), apply assigned work order filtering
-        var filtered = workOrders.filter { workOrder in
-            if let tradesmenSet = workOrder.tradesmen as? Set<Tradesmen> {
-                let isAssigned = tradesmenSet.contains { $0.email?.lowercased() == authViewModel.currentUserEmail?.lowercased() }
-                if isAssigned {
-                    print("Work order #\(workOrder.workOrderNumber) is assigned to the current technician.")
-                } else {
-                    print("Work order #\(workOrder.workOrderNumber) is NOT assigned to the current technician.")
-                }
-                return isAssigned
-            }
-            print("Work order #\(workOrder.workOrderNumber) has no tradesmen assigned.")
-            return false
-        }
-
-        // Apply search query filter
-        filtered = filtered.filter { workOrder in
+        var filtered = fetchedWorkOrders.filter { workOrder in
+            // Apply search query filter
             searchQuery.isEmpty || workOrderMatchesQuery(workOrder)
         }
 
@@ -389,7 +352,7 @@ struct WorkOrderListView: View {
             }
         }
 
-        // Sort the work orders
+        // Sort the filtered work orders
         return filtered.sorted { sortOption.comparator($0, $1) }
     }
     
