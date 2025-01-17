@@ -50,6 +50,9 @@ struct SettingsView: View {
                     // Custom Branding Section
                     customBrandingSection()
                     
+                    // Lead Management Section
+                    leadManagementSection()
+                    
                     // Inventory Management Section
                     inventoryManagementSection()
                     
@@ -143,6 +146,15 @@ struct SettingsView: View {
         cardView {
             NavigationLink(destination: CustomBrandingView()) {
                 SettingsItem(icon: "paintbrush.fill", title: "Custom Branding", color: .purple)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func leadManagementSection() -> some View {
+        cardView {
+            NavigationLink(destination: LeadManagementView()) {
+                SettingsItem(icon: "person.3.fill", title: "Lead Management", color: .purple)
                     .foregroundColor(isDarkMode ? .white : .black)
             }
         }

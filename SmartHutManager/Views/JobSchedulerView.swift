@@ -101,16 +101,18 @@ struct JobSchedulerView: View {
                 // List of work orders for the selected date
                 if workOrdersForSelectedDate.isEmpty {
                     Text("No work orders for \(formattedDate(selectedDate))")
-                        .font(.caption)
-                        .foregroundColor(.gray)
-                        .padding()
+                        .font(.headline) // Larger and bolder font
+                        .fontWeight(.semibold) // Makes text weight heavier
+                        .foregroundColor(.primary) // Text color
+                        .multilineTextAlignment(.center) // Center-align the text
+                        .padding() // Increase padding for more spacing
                         .frame(maxWidth: .infinity)
                         .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color(UIColor.systemGray6))
+                            RoundedRectangle(cornerRadius: 16) // Slightly larger corner radius
+                                .fill(Color(UIColor.systemGray5)) // Softer background color
                         )
                         .padding(.horizontal)
-                        .padding(.top, 10)
+                        .padding(.top, 20) // Increase top padding for better spacing
                 } else {
                     List {
                         ForEach(workOrdersForSelectedDate) { displayableOrder in
