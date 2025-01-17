@@ -139,7 +139,7 @@ struct InventoryOverviewView: View {
             Button(action: {
                 isEditingThresholds = true
             }) {
-                Text("Edit Thresholds")
+                Text("Edit Item Thresholds")
                     .font(.subheadline)
                     .foregroundColor(.white) // Set text color to white
                     .padding(.vertical, 6)
@@ -232,11 +232,11 @@ struct InventoryOverviewView: View {
                             Button(action: {
                                 itemToAssign = item
                             }) {
-                                Text("Assign")
+                                Text("Add to Tech Inventory")
                                     .font(.caption)
                                     .padding(.vertical, 6)
                                     .padding(.horizontal, 10)
-                                    .background(Color.blue)
+                                    .background(Color.orange) // change assign button background color here
                                     .foregroundColor(.white)
                                     .cornerRadius(8)
                             }

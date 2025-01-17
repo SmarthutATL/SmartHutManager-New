@@ -29,7 +29,7 @@ struct AssignInventoryView: View {
 
             // Assign to Tradesman
             VStack(alignment: .leading, spacing: 16) {
-                Text("Select Tradesman")
+                Text("Select Technician")
                     .font(.headline)
 
                 Picker("Tradesman", selection: $selectedTradesman) {

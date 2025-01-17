@@ -11,8 +11,9 @@ struct Lead: Identifiable, Codable {
     var lastActivity: Date
     var notes: String
     var createdAt: Date
+    var direct: Bool
 
-    // Firestore requires a coding key for custom mapping if needed
+    // Firestore requires custom coding keys for mapping fields
     private enum CodingKeys: String, CodingKey {
         case id
         case name
@@ -23,5 +24,6 @@ struct Lead: Identifiable, Codable {
         case lastActivity
         case notes
         case createdAt
+        case direct
     }
 }

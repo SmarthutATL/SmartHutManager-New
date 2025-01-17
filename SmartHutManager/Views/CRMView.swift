@@ -7,6 +7,7 @@ struct CRMView: View {
     // State for search query and add customer view
     @State private var searchText = ""
     @State private var showingAddCustomerView = false
+    @State private var isAtBottom = false // Track if the user scrolled to the bottom
 
     // Fetch customers from Core Data
     @FetchRequest(
@@ -53,8 +54,29 @@ struct CRMView: View {
                                 }
                             }
                         }
+                        
+                        // Add GeometryReader at the bottom of the list
+                        GeometryReader { geometry in
+                            Color.clear
+                                .onAppear {
+                                    isAtBottom = true // User scrolled to the bottom
+                                }
+                                .onDisappear {
+                                    isAtBottom = false // User scrolled away from the bottom
+                                }
+                        }
+                        .frame(height: 1) // Ensure minimal height
                     }
                     .listStyle(InsetGroupedListStyle())
+                    
+                    // Display total customer count when scrolled to the bottom
+                    if isAtBottom {
+                        Text("Total Customers: \(customers.count)")
+                            .font(.footnote)
+                            .foregroundColor(.gray)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 8)
+                    }
                 }
                 .navigationTitle("Customers")
                 .padding(.top, -10) // Reduce the top padding slightly
