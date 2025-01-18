@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject var deletedItemsManager: DeletedItemsManager
 
     @State private var showAlerts = false
+    @State private var showChat = false // State for presenting the Chat View
 
     var body: some View {
         ZStack {
@@ -28,7 +29,15 @@ struct ContentView: View {
                 GeometryReader { geometry in
                     VStack {
                         HStack {
-                            Spacer()
+                            Spacer() // Pushes the buttons to the right
+                            
+                            // Chat Button to the left of Alert Button
+                            ChatButton(hasNewMessage: true) {
+                                showChat = true // Trigger the chat view
+                            }
+                            .padding(.trailing, 15) // Space between ChatButton and AlertButton
+                            
+                            // Alert Button remains in its exact position
                             AlertButton(
                                 alertCount: alertViewModel.alertCount,
                                 hasNewAlert: alertViewModel.hasNewAlert,
@@ -37,10 +46,10 @@ struct ContentView: View {
                                     alertViewModel.markAlertsAsRead()
                                 }
                             )
-                            .padding(.trailing, 60) // Adjust horizontal position
-                            .padding(.top, geometry.safeAreaInsets.top + 65) // Position below the status bar area
+                            .padding(.trailing, 60) // Horizontal position remains unchanged
                         }
-                        Spacer()
+                        .padding(.top, geometry.safeAreaInsets.top + 65) // Vertical position remains unchanged
+                        Spacer() // Pushes content to the top
                     }
                 }
             }
@@ -49,6 +58,9 @@ struct ContentView: View {
         .sheet(isPresented: $showAlerts) {
             AlertsView()
                 .environmentObject(alertViewModel)
+        }
+        .sheet(isPresented: $showChat) {
+            ChatView() // Replace with the actual chat view
         }
     }
 }

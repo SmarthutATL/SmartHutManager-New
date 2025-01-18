@@ -44,6 +44,9 @@ struct SettingsView: View {
                     // Recently Deleted Section
                     recentlyDeletedSection()
                     
+                    // Customer Support Section
+                    customerSupportSection()
+                    
                     // Subscription Plan Section
                     subscriptionPlanSection()
                     
@@ -125,6 +128,14 @@ struct SettingsView: View {
             NavigationLink(destination: RecentlyDeletedItemsView()) {
                 SettingsItem(icon: "trash.fill", title: "Recently Deleted Items", color: .red)
                     .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
+    private func customerSupportSection() -> some View {
+        cardView {
+            NavigationLink(destination: SupportTicketView()) {
+                SettingsItem(icon: "questionmark.circle.fill", title: "Support", color: .orange)
             }
         }
     }
