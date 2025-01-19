@@ -15,7 +15,7 @@ extension WorkOrderDetailView {
                 Spacer()
             }
 
-            // Centered Tappable Address with Icon
+            // Centered Tappable Address with Blue Background
             if let address = workOrder.customer?.address, !address.isEmpty {
                 HStack {
                     Spacer()
@@ -26,8 +26,11 @@ extension WorkOrderDetailView {
                     }) {
                         Text(address)
                             .font(.title3)
-                            .foregroundColor(.blue)
-                            .underline()
+                            .fontWeight(.bold) // Increased font weight for emphasis
+                            .foregroundColor(.primary) // Adapts to light/dark modes
+                            .padding(5)
+                            .background(Color.blue.opacity(0.2)) // Highlight background
+                            .cornerRadius(5)
                     }
                     .buttonStyle(PlainButtonStyle())
                     Spacer()
@@ -44,20 +47,22 @@ extension WorkOrderDetailView {
                 }
             }
 
-            // Tappable Phone Number with Action Sheet for Call and Text
+            // Tappable Phone Number with Green Background
             if let phoneNumber = workOrder.customer?.phoneNumber, !phoneNumber.isEmpty {
                 HStack {
                     Spacer()
                     Image(systemName: "phone.fill")
                         .foregroundColor(.green)
-                    
                     Button(action: {
-                        isShowingActionSheet = true // Show action sheet on tap
+                        isShowingActionSheet = true
                     }) {
                         Text(phoneNumber)
                             .font(.title3)
-                            .foregroundColor(.green)
-                            .underline()
+                            .fontWeight(.bold)
+                            .foregroundColor(.primary)
+                            .padding(5)
+                            .background(Color.green.opacity(0.2))
+                            .cornerRadius(5)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .actionSheet(isPresented: $isShowingActionSheet) {

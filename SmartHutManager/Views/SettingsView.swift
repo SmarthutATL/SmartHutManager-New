@@ -44,6 +44,9 @@ struct SettingsView: View {
                     // Recently Deleted Section
                     recentlyDeletedSection()
                     
+                    // Knowledge Base Section
+                    knowledgeBaseSection()
+                    
                     // Customer Support Section
                     customerSupportSection()
                     
@@ -132,10 +135,20 @@ struct SettingsView: View {
         }
     }
     
+    private func knowledgeBaseSection() -> some View {
+        cardView {
+            NavigationLink(destination: KnowledgeBaseView()) {
+                SettingsItem(icon: "book.fill", title: "Knowledge Base", color: .teal)
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+        }
+    }
+    
     private func customerSupportSection() -> some View {
         cardView {
             NavigationLink(destination: SupportTicketView()) {
                 SettingsItem(icon: "questionmark.circle.fill", title: "Support", color: .orange)
+                    .foregroundColor(isDarkMode ? .white : .black)
             }
         }
     }

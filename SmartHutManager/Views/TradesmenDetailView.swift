@@ -35,7 +35,7 @@ struct TradesmenDetailView: View {
             }
         }
         .background(Color(.systemBackground).edgesIgnoringSafeArea(.all)) // Background adapts to dark or light mode
-        .navigationTitle("Technician Leaderboards")
+        .navigationTitle("Leaderboards")
         .navigationBarTitleDisplayMode(.inline)
     }
 

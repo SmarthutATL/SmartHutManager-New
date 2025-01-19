@@ -86,7 +86,7 @@ struct WorkOrderDetailView: View {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     HStack {
-                        Text("Work Order Details")
+                        Text("Work Order")
                         Spacer()
                         Text("#\(workOrder.workOrderNumber)")
                             .font(.headline)
